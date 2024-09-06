@@ -1,27 +1,25 @@
 package models
 
 import (
+	json2 "encoding/json"
+	"fmt"
 	"log"
 )
 
 type GameServer struct {
-	Players   map[*User]bool `json:"players"`
-	Host      *User          `json:"host"`
-	State     *GameState     `json:"state"`
 	Join      chan *User
 	Leave     chan *User
 	Broadcast chan []byte
+	State     *GameState
 }
 
-func NewGameServer(gameID string, host *User) *GameServer {
-	log.Println("Making new game server ")
+func NewGameServer(gameID int64, host *User) *GameServer {
+	log.Println(fmt.Sprintf("Making new game server with game id %s", gameID))
 	return &GameServer{
-		Players:   make(map[*User]bool),
-		Host:      host,
 		Join:      make(chan *User),
 		Leave:     make(chan *User),
-		Broadcast: make(chan []byte),
-		State:     &GameState{},
+		Broadcast: make(chan []byte, 256),
+		State:     NewGameState(host),
 	}
 }
 
@@ -40,18 +38,57 @@ func (gs *GameServer) StartGameServer() {
 }
 
 func (gs *GameServer) registerPlayer(user *User) {
-	log.Println("Player joined : ", user.Name)
-	gs.Players[user] = true
-}
-
-func (gs *GameServer) unregisterPlayer(user *User) {
-	if gs.Players[user] {
-		delete(gs.Players, user)
+	gs.State.Players[user] = true
+	userJoinedPayload := UserJoinedPayload{User: user}
+	encodedPayload, err := json2.Marshal(userJoinedPayload)
+	if err != nil {
+		log.Println(err)
+		return
 	}
+	message := Message{
+		Payload: string(encodedPayload),
+		Id:      -1,
+		Event:   UserJoinedEvent,
+		Sender: &User{
+			Id:   -1,
+			Name: "Server",
+		},
+	}
+	encodedMessage, err := json2.Marshal(message)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	println(user.Name)
+	gs.broadcast(encodedMessage)
 }
 
-func (gs *GameServer) broadcast(text []byte) {
-	for client := range gs.Players {
-		client.Send <- text
+func (gs *GameServer) unregisterPlayer(player *User) {
+	if gs.State.Players[player] {
+		delete(gs.State.Players, player)
+	}
+	userLeftPayload := UserLeftPayload{User: player}
+	encodedPayload, err := json2.Marshal(userLeftPayload)
+	message := Message{
+		Payload: string(encodedPayload),
+		Id:      -1,
+		Event:   UserLeftEvent,
+	}
+	encodedMessage, err := json2.Marshal(message)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	gs.broadcast(encodedMessage)
+}
+
+func (gs *GameServer) broadcast(data []byte) {
+	isForHost := gs.State.updateGameState(data)
+	if !isForHost {
+		gs.State.Host.Send <- data
+	} else {
+		for player := range gs.State.Players {
+			player.Send <- data
+		}
 	}
 }

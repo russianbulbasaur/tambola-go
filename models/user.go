@@ -26,14 +26,17 @@ var (
 )
 
 type User struct {
-	Id   string `json:"id"`
-	Name string `json:"name"`
-	Conn *websocket.Conn
-	Game *GameServer
-	Send chan []byte
+	Id         int64           `json:"id"`
+	Name       string          `json:"name"`
+	Conn       *websocket.Conn `json:"-"`
+	GameServer *GameServer     `json:"-"`
+	Send       chan []byte     `json:"-"`
+	IsHost     bool            `json:"is_host"`
 }
 
-func (client *User) disconnect() {}
+func (client *User) disconnect() {
+	client.Conn.Close()
+}
 
 func (client *User) ReadPump() {
 	defer func() {
@@ -54,7 +57,7 @@ func (client *User) ReadPump() {
 			break
 		}
 
-		client.Game.Broadcast <- jsonMessage
+		client.GameServer.Broadcast <- jsonMessage
 	}
 }
 

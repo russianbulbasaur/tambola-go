@@ -5,6 +5,7 @@ import (
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
+	"strconv"
 )
 
 var upgrader = websocket.Upgrader{
@@ -30,7 +31,11 @@ func NewGameHandler(gs services.GameService) GameHandler {
 
 func (gh *gameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 	params := r.URL.Query()
-	userId := params.Get("user_id")
+	userId, err := strconv.ParseInt(params.Get("user_id"), 10, 64)
+	if err != nil {
+		log.Println(err)
+		return
+	}
 	name := params.Get("name")
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -41,9 +46,17 @@ func (gh *gameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 
 func (gh *gameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	params := r.URL.Query()
-	userId := params.Get("user_id")
+	userId, err := strconv.ParseInt(params.Get("user_id"), 10, 64)
+	if err != nil {
+		log.Println(err)
+		return
+	}
 	name := params.Get("name")
-	code := params.Get("code")
+	code, err := strconv.ParseInt(params.Get("code"), 10, 64)
+	if err != nil {
+		log.Println(err)
+		return
+	}
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Fatalln(err)

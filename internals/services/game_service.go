@@ -2,61 +2,79 @@ package services
 
 import (
 	"cmd/tambola/models"
+	json2 "encoding/json"
 	"github.com/gorilla/websocket"
+	"log"
 	"math/rand/v2"
-	"strconv"
 )
 
 type gameService struct {
-	games       map[string]*models.GameServer
+	games       map[int64]*models.GameServer
 	activeGames int64
 }
 
 type GameService interface {
-	CreateGame(string, string, *websocket.Conn)
-	JoinGame(string, string, string, *websocket.Conn)
+	CreateGame(int64, string, *websocket.Conn)
+	JoinGame(int64, int64, string, *websocket.Conn)
 }
 
 func NewGameService() GameService {
 	return &gameService{
-		games:       make(map[string]*models.GameServer),
+		games:       make(map[int64]*models.GameServer),
 		activeGames: 0,
 	}
 }
 
-func (gs *gameService) CreateGame(userId string, name string, conn *websocket.Conn) {
+func (gs *gameService) CreateGame(userId int64, name string, conn *websocket.Conn) {
 	user := &models.User{
-		Name: name,
-		Id:   userId,
-		Send: make(chan []byte),
-		Conn: conn,
+		Name:   name,
+		Id:     userId,
+		Send:   make(chan []byte, 500),
+		Conn:   conn,
+		IsHost: true,
 	}
 	go user.ReadPump()
 	go user.WritePump()
 	gameId := generateGameCode()
 	gameServer := models.NewGameServer(gameId, user)
 	go gameServer.StartGameServer()
-	user.Game = gameServer
+	user.GameServer = gameServer
+	gs.games[gameId] = gameServer
 	gameServer.Join <- user
-	code := generateGameCode()
-	gameServer.Broadcast <- []byte(code)
-	gs.games[code] = gameServer
+	sendGameIdToHost(user, gameId)
 }
 
-func generateGameCode() string {
-	return "2732844840814395882"
-	return strconv.Itoa(rand.Int())
+func sendGameIdToHost(user *models.User, gameId int64) {
+	gameIdPayload := &models.GameIdPayload{Id: gameId}
+	encodedGameIdPayload, err := json2.Marshal(gameIdPayload)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	message := &models.Message{Id: rand.Int64(),
+		Sender: &models.User{Id: -1, Name: "Server"},
+		Event:  models.GameIdEvent, Payload: string(encodedGameIdPayload)}
+	encodedMessage, err := json2.Marshal(message)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	user.Send <- encodedMessage
 }
 
-func (gs *gameService) JoinGame(code string, userId string, name string, conn *websocket.Conn) {
+func generateGameCode() int64 {
+	return int64(rand.Int())
+}
+
+func (gs *gameService) JoinGame(code int64, userId int64, name string, conn *websocket.Conn) {
 	gameServer := gs.games[code]
-	if gameServer == nil {
+	if gameServer == nil || !(gameServer.State.Status == models.Waiting) {
 		conn.Close()
 		return
 	}
 	user := &models.User{Id: userId,
-		Name: name, Game: gameServer,
-		Conn: conn, Send: make(chan []byte)}
+		Name: name, GameServer: gameServer,
+		Conn: conn, Send: make(chan []byte, 500), IsHost: false}
 	go user.ReadPump()
 	go user.WritePump()
 	gameServer.Join <- user

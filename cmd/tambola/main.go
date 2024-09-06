@@ -42,7 +42,15 @@ func initHandlers(gameService services.GameService) {
 
 func initRouter() chi.Router {
 	appRouter := chi.NewRouter()
+	appRouter.Mount("/game", gameRouter())
 	return appRouter
+}
+
+func gameRouter() chi.Router {
+	gameRouter := chi.NewRouter()
+	gameRouter.Get("/create", gameHandler.CreateGame)
+	gameRouter.Get("/join", gameHandler.JoinGame)
+	return gameRouter
 }
 
 func startServer(appRouter chi.Router) {

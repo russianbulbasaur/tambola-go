@@ -51,6 +51,7 @@ func generateGameCode() string {
 func (gs *gameService) JoinGame(code string, userId string, name string, conn *websocket.Conn) {
 	gameServer := gs.games[code]
 	if gameServer == nil {
+		conn.Close()
 		return
 	}
 	user := &models.User{Id: userId,

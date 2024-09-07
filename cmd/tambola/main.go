@@ -16,7 +16,7 @@ var (
 )
 
 func main() {
-	loadEnv()
+	//loadEnv()
 	gameService := initServices()
 	initHandlers(gameService)
 	appRouter := initRouter()
@@ -54,7 +54,8 @@ func gameRouter() chi.Router {
 }
 
 func startServer(appRouter chi.Router) {
-	port := os.Getenv("PORT")
+	//port := os.Getenv("PORT")
+        port := 8000
 	log.Printf("Starting server at %s", port)
 	err := http.ListenAndServe(fmt.Sprintf("0.0.0.0:%s", port), appRouter)
 	if err != nil {

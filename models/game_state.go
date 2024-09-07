@@ -56,19 +56,16 @@ func (gameState *GameState) updateGameState(data []byte) bool {
 	message := Decode(data)
 	switch message.Event {
 	case UserJoinedEvent:
-		gameState.addPlayer(message.decodePlayerPayload().User)
+		gameState.addPlayer(message.UserJoinedPayload.User)
 		break
 	case UserLeftEvent:
-		gameState.removePlayer(message.decodePlayerPayload().User)
-		break
-	case AlertEvent:
-		gameState.addAlert(message.decodeAlertPayload().Alert)
+		gameState.removePlayer(message.UserLeftPayload.User)
 		break
 	case NumberCalledEvent:
-		gameState.addNumber(message.decodeNumberPayload().Number)
+		gameState.addNumber(message.NumberPayload.Number)
 		break
 	case UpdateGameStatusEvent:
-		gameState.updateGameStatus(message.decodeGameStatusPayload().Status)
+		gameState.updateGameStatus(message.GameStatusPayload.Status)
 		break
 	}
 	return message.Sender.Id == -1 || !message.Sender.IsHost

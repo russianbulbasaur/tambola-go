@@ -42,22 +42,18 @@ func (gs *GameServer) StartGameServer() {
 
 func (gs *GameServer) registerPlayer(user *User) {
 	gs.State.Players[user] = true
-	userJoinedPayload := UserJoinedPayload{User: user}
-	encodedPayload, err := json2.Marshal(userJoinedPayload)
-	if err != nil {
-		log.Println(err)
-		return
-	}
+	userJoinedPayload := &UserJoinedPayload{User: user}
 	message := Message{
-		Payload: string(encodedPayload),
-		Id:      -1,
-		Event:   UserJoinedEvent,
+		UserJoinedPayload: userJoinedPayload,
+		Id:                -1,
+		Event:             UserJoinedEvent,
 		Sender: &User{
 			Id:   -1,
 			Name: "Server",
 		},
 	}
 	encodedMessage, err := json2.Marshal(message)
+	println(string(encodedMessage))
 	if err != nil {
 		log.Println(err)
 		return
@@ -71,32 +67,30 @@ func sendGameStateToJoinee(player *User, gs *GameServer) {
 	for memberPlayer := range gs.State.Players {
 		players = append(players, memberPlayer)
 	}
-	playersAlreadyInLobbyPayload := PlayersAlreadyInLobbyPayload{Players: players, GameId: gs.Id}
-	encodedPayload, err := json2.Marshal(playersAlreadyInLobbyPayload)
-	if err != nil {
-		log.Println(err)
-		return
-	}
+	playersAlreadyInLobbyPayload := &PlayersAlreadyInLobbyPayload{Players: players, GameId: gs.Id}
 	message := &Message{Id: rand.Int64(),
-		Payload: string(encodedPayload)}
+		PlayersAlreadyInLobbyPayload: playersAlreadyInLobbyPayload,
+		Sender: &User{
+			Id:   -1,
+			Name: "Server",
+		}, Event: PlayersInLobbyEvent}
 	encodedMessage, err := json2.Marshal(message)
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	gs.broadcast(encodedMessage)
+	player.Send <- encodedMessage
 }
 
 func (gs *GameServer) unregisterPlayer(player *User) {
 	if gs.State.Players[player] {
 		delete(gs.State.Players, player)
 	}
-	userLeftPayload := UserLeftPayload{User: player}
-	encodedPayload, err := json2.Marshal(userLeftPayload)
+	userLeftPayload := &UserLeftPayload{User: player}
 	message := Message{
-		Payload: string(encodedPayload),
-		Id:      -1,
-		Event:   UserLeftEvent,
+		UserLeftPayload: userLeftPayload,
+		Id:              -1,
+		Event:           UserLeftEvent,
 	}
 	encodedMessage, err := json2.Marshal(message)
 	if err != nil {

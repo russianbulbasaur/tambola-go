@@ -10,17 +10,17 @@ const UserLeftEvent = "user_left"
 const AlertEvent = "alert"
 const NumberCalledEvent = "number_called"
 const UpdateGameStatusEvent = "game_status"
-const GameIdEvent = "game_id"
+const PlayersInLobbyEvent = "players_already_in_lobby"
 
 type Message struct {
-	Id      int64  `json:"id"`
-	Event   string `json:"event"`
-	Sender  *User  `json:"sender"`
-	Payload string `json:"payload"`
-}
-
-type GameIdPayload struct {
-	Id int32 `json:"game_id"`
+	Id                           int64                         `json:"id"`
+	Event                        string                        `json:"event"`
+	Sender                       *User                         `json:"sender"`
+	PlayersAlreadyInLobbyPayload *PlayersAlreadyInLobbyPayload `json:"players_already_in_lobby_payload,omitempty"`
+	UserJoinedPayload            *UserJoinedPayload            `json:"user_joined_payload,omitempty"`
+	UserLeftPayload              *UserLeftPayload              `json:"user_left_payload,omitempty"`
+	NumberPayload                *NumberPayload                `json:"number_payload,omitempty"`
+	GameStatusPayload            *GameStatusPayload            `json:"game_status_payload,omitempty"`
 }
 
 type PlayersAlreadyInLobbyPayload struct {
@@ -64,45 +64,4 @@ func Decode(data []byte) *Message {
 		return nil
 	}
 	return decodedMessage
-}
-
-func (message *Message) decodePlayerPayload() *UserJoinedPayload {
-	log.Println(message.Payload)
-	player := &UserJoinedPayload{}
-	err := json2.Unmarshal([]byte(message.Payload), player)
-	if err != nil {
-		log.Println(err)
-		return nil
-	}
-	return player
-}
-
-func (message *Message) decodeAlertPayload() *AlertPayload {
-	alert := &AlertPayload{}
-	err := json2.Unmarshal([]byte(message.Payload), alert)
-	if err != nil {
-		log.Println(err)
-		return nil
-	}
-	return alert
-}
-
-func (message *Message) decodeNumberPayload() *NumberPayload {
-	numberPayload := &NumberPayload{}
-	err := json2.Unmarshal([]byte(message.Payload), numberPayload)
-	if err != nil {
-		log.Println(err)
-		return nil
-	}
-	return numberPayload
-}
-
-func (message *Message) decodeGameStatusPayload() *GameStatusPayload {
-	gameStatusPayload := &GameStatusPayload{}
-	err := json2.Unmarshal([]byte(message.Payload), gameStatusPayload)
-	if err != nil {
-		log.Println(err)
-		return nil
-	}
-	return gameStatusPayload
 }

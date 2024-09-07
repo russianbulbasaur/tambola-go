@@ -8,7 +8,6 @@ import (
 	"github.com/joho/godotenv"
 	"log"
 	"net/http"
-	"os"
 )
 
 var (

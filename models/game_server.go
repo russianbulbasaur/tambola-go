@@ -84,7 +84,7 @@ func sendGameStateToJoinee(player *User, gs *GameServer) {
 		log.Println(err)
 		return
 	}
-	player.Send <- encodedMessage
+	gs.broadcast(encodedMessage)
 }
 
 func (gs *GameServer) unregisterPlayer(player *User) {

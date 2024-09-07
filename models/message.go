@@ -20,7 +20,7 @@ type Message struct {
 }
 
 type GameIdPayload struct {
-	Id int64 `json:"game_id"`
+	Id int32 `json:"game_id"`
 }
 
 type UserJoinedPayload struct {

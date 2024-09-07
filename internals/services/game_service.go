@@ -9,18 +9,18 @@ import (
 )
 
 type gameService struct {
-	games       map[int64]*models.GameServer
+	games       map[int32]*models.GameServer
 	activeGames int64
 }
 
 type GameService interface {
 	CreateGame(int64, string, *websocket.Conn)
-	JoinGame(int64, int64, string, *websocket.Conn)
+	JoinGame(int32, int64, string, *websocket.Conn)
 }
 
 func NewGameService() GameService {
 	return &gameService{
-		games:       make(map[int64]*models.GameServer),
+		games:       make(map[int32]*models.GameServer),
 		activeGames: 0,
 	}
 }
@@ -44,7 +44,7 @@ func (gs *gameService) CreateGame(userId int64, name string, conn *websocket.Con
 	sendGameIdToHost(user, gameId)
 }
 
-func sendGameIdToHost(user *models.User, gameId int64) {
+func sendGameIdToHost(user *models.User, gameId int32) {
 	gameIdPayload := &models.GameIdPayload{Id: gameId}
 	encodedGameIdPayload, err := json2.Marshal(gameIdPayload)
 	if err != nil {
@@ -62,11 +62,11 @@ func sendGameIdToHost(user *models.User, gameId int64) {
 	user.Send <- encodedMessage
 }
 
-func generateGameCode() int64 {
-	return int64(rand.Int())
+func generateGameCode() int32 {
+	return rand.Int32()
 }
 
-func (gs *gameService) JoinGame(code int64, userId int64, name string, conn *websocket.Conn) {
+func (gs *gameService) JoinGame(code int32, userId int64, name string, conn *websocket.Conn) {
 	gameServer := gs.games[code]
 	if gameServer == nil || !(gameServer.State.Status == models.Waiting) {
 		conn.Close()

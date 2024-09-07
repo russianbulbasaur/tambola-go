@@ -13,7 +13,7 @@ type GameServer struct {
 	State     *GameState
 }
 
-func NewGameServer(gameID int64, host *User) *GameServer {
+func NewGameServer(gameID int32, host *User) *GameServer {
 	log.Println(fmt.Sprintf("Making new game server with game id %s", gameID))
 	return &GameServer{
 		Join:      make(chan *User),
@@ -88,6 +88,7 @@ func (gs *GameServer) broadcast(data []byte) {
 		gs.State.Host.Send <- data
 	} else {
 		for player := range gs.State.Players {
+			log.Println(fmt.Sprintf("Sending to player %s", player.Name))
 			player.Send <- data
 		}
 	}

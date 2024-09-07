@@ -52,7 +52,7 @@ func (gh *gameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	name := params.Get("name")
-	code, err := strconv.ParseInt(params.Get("code"), 10, 64)
+	code, err := strconv.ParseInt(params.Get("code"), 10, 32)
 	if err != nil {
 		log.Println(err)
 		return
@@ -61,5 +61,5 @@ func (gh *gameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	gh.gameService.JoinGame(code, userId, name, conn)
+	gh.gameService.JoinGame(int32(code), userId, name, conn)
 }

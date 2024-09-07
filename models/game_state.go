@@ -53,6 +53,7 @@ func (gameState *GameState) updateGameStatus(status string) {
 }
 
 func (gameState *GameState) updateGameState(data []byte) bool {
+	println(string(data))
 	message := Decode(data)
 	switch message.Event {
 	case UserJoinedEvent:

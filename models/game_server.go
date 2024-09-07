@@ -21,7 +21,7 @@ func NewGameServer(gameID int32, host *User) *GameServer {
 		Id:        gameID,
 		Join:      make(chan *User),
 		Leave:     make(chan *User),
-		Broadcast: make(chan []byte, 256),
+		Broadcast: make(chan []byte),
 		State:     NewGameState(host),
 	}
 }
@@ -59,7 +59,7 @@ func (gs *GameServer) registerPlayer(user *User) {
 		return
 	}
 	gs.broadcast(encodedMessage)
-	sendGameStateToJoinee(user, gs)
+	//sendGameStateToJoinee(user, gs)
 }
 
 func sendGameStateToJoinee(player *User, gs *GameServer) {

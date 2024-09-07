@@ -23,6 +23,11 @@ type GameIdPayload struct {
 	Id int32 `json:"game_id"`
 }
 
+type PlayersAlreadyInLobbyPayload struct {
+	Players []*User `json:"players"`
+	GameId  int32   `json:"game_id"`
+}
+
 type UserJoinedPayload struct {
 	User *User `json:"user"`
 }

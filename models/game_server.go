@@ -4,9 +4,11 @@ import (
 	json2 "encoding/json"
 	"fmt"
 	"log"
+	"math/rand/v2"
 )
 
 type GameServer struct {
+	Id        int32
 	Join      chan *User
 	Leave     chan *User
 	Broadcast chan []byte
@@ -14,8 +16,9 @@ type GameServer struct {
 }
 
 func NewGameServer(gameID int32, host *User) *GameServer {
-	log.Println(fmt.Sprintf("Making new game server with game id %s", gameID))
+	log.Println(fmt.Sprintf("Making new game server with game id %d", gameID))
 	return &GameServer{
+		Id:        gameID,
 		Join:      make(chan *User),
 		Leave:     make(chan *User),
 		Broadcast: make(chan []byte, 256),
@@ -59,8 +62,29 @@ func (gs *GameServer) registerPlayer(user *User) {
 		log.Println(err)
 		return
 	}
-	println(user.Name)
 	gs.broadcast(encodedMessage)
+	sendGameStateToJoinee(user, gs)
+}
+
+func sendGameStateToJoinee(player *User, gs *GameServer) {
+	var players []*User
+	for memberPlayer := range gs.State.Players {
+		players = append(players, memberPlayer)
+	}
+	playersAlreadyInLobbyPayload := PlayersAlreadyInLobbyPayload{Players: players, GameId: gs.Id}
+	encodedPayload, err := json2.Marshal(playersAlreadyInLobbyPayload)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	message := &Message{Id: rand.Int64(),
+		Payload: string(encodedPayload)}
+	encodedMessage, err := json2.Marshal(message)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	player.Send <- encodedMessage
 }
 
 func (gs *GameServer) unregisterPlayer(player *User) {

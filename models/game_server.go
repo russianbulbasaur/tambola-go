@@ -59,7 +59,7 @@ func (gs *GameServer) registerPlayer(user *User) {
 		return
 	}
 	gs.broadcast(encodedMessage)
-	//sendGameStateToJoinee(user, gs)
+	sendGameStateToJoinee(user, gs)
 }
 
 func sendGameStateToJoinee(player *User, gs *GameServer) {

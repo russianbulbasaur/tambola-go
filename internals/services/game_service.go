@@ -4,16 +4,19 @@ import (
 	"cmd/tambola/models"
 	"github.com/gorilla/websocket"
 	"math/rand/v2"
+	"sync"
 )
 
 type gameService struct {
 	games       map[int32]*models.GameServer
 	activeGames int64
+	mutex       sync.Mutex
 }
 
 type GameService interface {
 	CreateGame(int64, string, *websocket.Conn)
 	JoinGame(int32, int64, string, *websocket.Conn)
+	DeleteGame(int32)
 }
 
 func NewGameService() GameService {
@@ -35,10 +38,19 @@ func (gs *gameService) CreateGame(userId int64, name string, conn *websocket.Con
 	go user.WritePump()
 	gameId := generateGameCode()
 	gameServer := models.NewGameServer(gameId, user)
-	go gameServer.StartGameServer()
+	go gameServer.StartGameServer(gs)
 	user.GameServer = gameServer
 	gs.games[gameId] = gameServer
 	gameServer.Join <- user
+}
+
+func (gs *gameService) DeleteGame(gameId int32) {
+	gs.mutex.Lock()
+	if _, exists := gs.games[gameId]; exists {
+		gs.activeGames--
+		delete(gs.games, gameId)
+	}
+	gs.mutex.Unlock()
 }
 
 func generateGameCode() int32 {

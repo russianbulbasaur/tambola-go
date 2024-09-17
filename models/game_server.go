@@ -1,6 +1,7 @@
 package models
 
 import (
+	"cmd/tambola/internals/services"
 	"context"
 	json2 "encoding/json"
 	"fmt"
@@ -36,7 +37,7 @@ func NewGameServer(gameID int32, host *User) *GameServer {
 	}
 }
 
-func (gs *GameServer) StartGameServer() {
+func (gs *GameServer) StartGameServer(gameService services.GameService) {
 looper:
 	for {
 		select {
@@ -49,6 +50,7 @@ looper:
 			gs.broadcast(message)
 		case <-gs.ctx.Done():
 			log.Printf("Stopping game server %d", gs.Id)
+			gameService.DeleteGame(gs.Id)
 			break looper
 		}
 	}

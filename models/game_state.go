@@ -17,6 +17,7 @@ type GameState struct {
 	alerts        []string
 	claimed       []string
 	numbersCalled []int64
+	playerCount   int64
 }
 
 func NewGameState(host *User) *GameState {

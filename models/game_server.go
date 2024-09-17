@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand/v2"
+	"sync"
 )
 
 type GameServer struct {
@@ -12,7 +13,9 @@ type GameServer struct {
 	Join      chan *User
 	Leave     chan *User
 	Broadcast chan []byte
+	Stop      chan int64
 	State     *GameState
+	Lock      sync.Mutex
 }
 
 func NewGameServer(gameID int32, host *User) *GameServer {
@@ -22,6 +25,7 @@ func NewGameServer(gameID int32, host *User) *GameServer {
 		Join:      make(chan *User),
 		Leave:     make(chan *User),
 		Broadcast: make(chan []byte),
+		Stop:      make(chan int64),
 		State:     NewGameState(host),
 	}
 }
@@ -36,12 +40,15 @@ func (gs *GameServer) StartGameServer() {
 			gs.unregisterPlayer(user)
 		case message := <-gs.Broadcast:
 			gs.broadcast(message)
+		case <-gs.Stop:
+			log.Println("Stopping game server")
+			break
 		}
 	}
 }
 
 func (gs *GameServer) registerPlayer(user *User) {
-	gs.State.Players[user] = true
+	gs.addPlayerToState(user)
 	userJoinedPayload := &UserJoinedPayload{User: user}
 	message := Message{
 		UserJoinedPayload: userJoinedPayload,
@@ -59,10 +66,10 @@ func (gs *GameServer) registerPlayer(user *User) {
 		return
 	}
 	gs.broadcast(encodedMessage)
-	sendGameStateToJoinee(user, gs)
+	gs.sendGameStateToJoinee(user)
 }
 
-func sendGameStateToJoinee(player *User, gs *GameServer) {
+func (gs *GameServer) sendGameStateToJoinee(player *User) {
 	var players []*User
 	for memberPlayer := range gs.State.Players {
 		players = append(players, memberPlayer)
@@ -83,9 +90,11 @@ func sendGameStateToJoinee(player *User, gs *GameServer) {
 }
 
 func (gs *GameServer) unregisterPlayer(player *User) {
-	if gs.State.Players[player] {
-		delete(gs.State.Players, player)
+	if player.IsHost {
+		gs.killGameServer()
+		return
 	}
+	gs.removePlayerFromState(player)
 	userLeftPayload := &UserLeftPayload{User: player}
 	message := Message{
 		UserLeftPayload: userLeftPayload,
@@ -107,7 +116,29 @@ func (gs *GameServer) broadcast(data []byte) {
 	} else {
 		for player := range gs.State.Players {
 			log.Println(fmt.Sprintf("Sending to player %s", player.Name))
+			player.Lock.Lock()
 			player.Send <- data
+			player.Lock.Unlock()
 		}
 	}
+
+	if gs.State.playerCount == 0 {
+		gs.killGameServer()
+	}
+}
+
+func (gs *GameServer) removePlayerFromState(player *User) {
+	if gs.State.Players[player] {
+		delete(gs.State.Players, player)
+		gs.State.playerCount--
+	}
+}
+
+func (gs *GameServer) addPlayerToState(player *User) {
+	gs.State.Players[player] = true
+	gs.State.playerCount++
+}
+
+func (gs *GameServer) killGameServer() {
+	gs.Stop <- 1
 }

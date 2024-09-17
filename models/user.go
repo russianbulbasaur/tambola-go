@@ -3,6 +3,7 @@ package models
 import (
 	"github.com/gorilla/websocket"
 	"log"
+	"sync"
 	"time"
 )
 
@@ -32,9 +33,11 @@ type User struct {
 	GameServer *GameServer     `json:"-"`
 	Send       chan []byte     `json:"-"`
 	IsHost     bool            `json:"is_host"`
+	Lock       sync.Mutex      `json:"-"`
 }
 
 func (client *User) disconnect() {
+	client.GameServer.Leave <- client
 	client.Conn.Close()
 }
 
@@ -56,8 +59,9 @@ func (client *User) ReadPump() {
 			}
 			break
 		}
-
+		client.GameServer.Lock.Lock()
 		client.GameServer.Broadcast <- jsonMessage
+		client.GameServer.Lock.Unlock()
 	}
 }
 
@@ -65,7 +69,7 @@ func (client *User) WritePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
-		client.Conn.Close()
+		client.disconnect()
 	}()
 	for {
 		select {

@@ -141,5 +141,6 @@ func (gs *GameServer) addPlayerToState(player *User) {
 }
 
 func (gs *GameServer) killGameServer() {
+	log.Println("Initiating server kill")
 	gs.Stop <- 1
 }

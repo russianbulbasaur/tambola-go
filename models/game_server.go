@@ -146,5 +146,12 @@ func (gs *GameServer) addPlayerToState(player *User) {
 
 func (gs *GameServer) killGameServer() {
 	log.Println("Initiating server kill")
+	for player := range gs.State.Players {
+		err := player.Conn.Close()
+		if err != nil {
+			log.Printf("Error while kicking client %#v with error %v",
+				player, err)
+		}
+	}
 	gs.cancel()
 }

@@ -1,6 +1,7 @@
 package models
 
 import (
+	"context"
 	json2 "encoding/json"
 	"fmt"
 	"log"
@@ -16,10 +17,13 @@ type GameServer struct {
 	Stop      chan int64
 	State     *GameState
 	Lock      sync.Mutex
+	ctx       context.Context
+	cancel    context.CancelFunc
 }
 
 func NewGameServer(gameID int32, host *User) *GameServer {
 	log.Println(fmt.Sprintf("Making new game server with game id %d", gameID))
+	ctx, cancel := context.WithCancel(context.Background())
 	return &GameServer{
 		Id:        gameID,
 		Join:      make(chan *User),
@@ -27,6 +31,8 @@ func NewGameServer(gameID int32, host *User) *GameServer {
 		Broadcast: make(chan []byte),
 		Stop:      make(chan int64),
 		State:     NewGameState(host),
+		ctx:       ctx,
+		cancel:    cancel,
 	}
 }
 
@@ -41,8 +47,8 @@ func (gs *GameServer) StartGameServer() {
 			gs.unregisterPlayer(user)
 		case message := <-gs.Broadcast:
 			gs.broadcast(message)
-		case <-gs.Stop:
-			log.Println("Stopping game server")
+		case <-gs.ctx.Done():
+			log.Printf("Stopping game server %d", gs.Id)
 			break
 		}
 	}
@@ -142,5 +148,5 @@ func (gs *GameServer) addPlayerToState(player *User) {
 
 func (gs *GameServer) killGameServer() {
 	log.Println("Initiating server kill")
-	gs.Stop <- 1
+	gs.cancel()
 }

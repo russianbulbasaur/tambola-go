@@ -37,7 +37,7 @@ func NewGameServer(gameID int32, host *User) *GameServer {
 }
 
 func (gs *GameServer) StartGameServer() {
-	log.Println("Starting game server")
+looper:
 	for {
 		select {
 		case user := <-gs.Join:
@@ -49,7 +49,7 @@ func (gs *GameServer) StartGameServer() {
 			gs.broadcast(message)
 		case <-gs.ctx.Done():
 			log.Printf("Stopping game server %d", gs.Id)
-			break
+			break looper
 		}
 	}
 }
@@ -127,10 +127,6 @@ func (gs *GameServer) broadcast(data []byte) {
 			player.Send <- data
 			player.Lock.Unlock()
 		}
-	}
-
-	if gs.State.playerCount == 0 {
-		gs.killGameServer()
 	}
 }
 

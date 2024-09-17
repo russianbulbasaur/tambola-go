@@ -37,6 +37,7 @@ func (gs *GameServer) StartGameServer() {
 		case user := <-gs.Join:
 			gs.registerPlayer(user)
 		case user := <-gs.Leave:
+			log.Printf("User Leaving : %#v", user)
 			gs.unregisterPlayer(user)
 		case message := <-gs.Broadcast:
 			gs.broadcast(message)

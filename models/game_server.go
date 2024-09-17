@@ -49,10 +49,11 @@ looper:
 			gs.broadcast(message)
 		case <-gs.ctx.Done():
 			log.Printf("Stopping game server %d", gs.Id)
-			gameServiceDeleteChannel <- gs.Id
 			break looper
 		}
 	}
+	gameServiceDeleteChannel <- gs.Id
+	log.Printf("Stopped game server %d", gs.Id)
 }
 
 func (gs *GameServer) registerPlayer(user *User) {

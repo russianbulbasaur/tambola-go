@@ -33,13 +33,15 @@ func NewGameService() GameService {
 
 func deleteGame(gs *gameService) {
 	for {
-		gameId := <-gs.deleteGameChannel
-		gs.mutex.Lock()
-		if _, exists := gs.games[gameId]; exists {
-			gs.activeGames--
-			delete(gs.games, gameId)
+		select {
+		case gameId := <-gs.deleteGameChannel:
+			gs.mutex.Lock()
+			if _, exists := gs.games[gameId]; exists {
+				gs.activeGames--
+				delete(gs.games, gameId)
+			}
+			gs.mutex.Unlock()
 		}
-		gs.mutex.Unlock()
 	}
 }
 

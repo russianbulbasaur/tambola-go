@@ -68,7 +68,6 @@ func (gs *GameServer) registerPlayer(user *User) {
 		},
 	}
 	encodedMessage, err := json2.Marshal(message)
-	println(string(encodedMessage))
 	if err != nil {
 		log.Println(err)
 		return
@@ -108,6 +107,10 @@ func (gs *GameServer) unregisterPlayer(player *User) {
 		UserLeftPayload: userLeftPayload,
 		Id:              -1,
 		Event:           UserLeftEvent,
+		Sender: &User{
+			Id:   -1,
+			Name: "Server",
+		},
 	}
 	encodedMessage, err := json2.Marshal(message)
 	if err != nil {

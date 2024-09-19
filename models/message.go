@@ -41,7 +41,7 @@ type AlertPayload struct {
 }
 
 type NumberPayload struct {
-	Number int64 `json:"number"`
+	Number int32 `json:"number"`
 }
 
 type GameStatusPayload struct {

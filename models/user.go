@@ -1,6 +1,7 @@
 package models
 
 import (
+	"context"
 	"github.com/gorilla/websocket"
 	"log"
 	"sync"
@@ -30,58 +31,59 @@ type User struct {
 	Id         int64           `json:"id"`
 	Name       string          `json:"name"`
 	Conn       *websocket.Conn `json:"-"`
-	GameServer *GameServer     `json:"-"`
+	GameServer GameServer      `json:"-"`
 	Send       chan []byte     `json:"-"`
 	IsHost     bool            `json:"is_host"`
 	Lock       sync.Mutex      `json:"-"`
 }
 
-func (client *User) disconnect() {
-	client.GameServer.Leave <- client
-	client.Conn.Close()
+func (player *User) disconnect() {
+	player.GameServer.RemovePlayer(player)
+	player.Conn.Close()
 }
 
-func (client *User) ReadPump() {
-	defer func() {
-		client.disconnect()
-	}()
+func (player *User) ReadPump(gameCtx context.Context) {
+	defer player.disconnect()
 
-	client.Conn.SetReadLimit(maxMessageSize)
-	client.Conn.SetReadDeadline(time.Now().Add(pongWait))
-	client.Conn.SetPongHandler(func(string) error { client.Conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
+	player.Conn.SetReadLimit(maxMessageSize)
+	player.Conn.SetReadDeadline(time.Now().Add(pongWait))
+	player.Conn.SetPongHandler(func(string) error { player.Conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 
 	// Start endless read loop, waiting for messages from client
 	for {
-		_, jsonMessage, err := client.Conn.ReadMessage()
-		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("unexpected close error: %v", err)
+		select {
+		case <-gameCtx.Done():
+			return
+		default:
+			_, jsonMessage, err := player.Conn.ReadMessage()
+			if err != nil {
+				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+					log.Printf("unexpected close error: %v", err)
+				}
+				return
 			}
-			break
+			player.GameServer.BroadcastMessage(jsonMessage)
 		}
-		client.GameServer.Lock.Lock()
-		client.GameServer.Broadcast <- jsonMessage
-		client.GameServer.Lock.Unlock()
 	}
 }
 
-func (client *User) WritePump() {
+func (player *User) WritePump(gameCtx context.Context) {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
-		client.disconnect()
+		player.disconnect()
 	}()
 	for {
 		select {
-		case message, ok := <-client.Send:
-			client.Conn.SetWriteDeadline(time.Now().Add(writeWait))
+		case message, ok := <-player.Send:
+			player.Conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// The WsServer closed the channel.
-				client.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+				player.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
 
-			w, err := client.Conn.NextWriter(websocket.TextMessage)
+			w, err := player.Conn.NextWriter(websocket.TextMessage)
 			if err != nil {
 				return
 			}
@@ -91,10 +93,12 @@ func (client *User) WritePump() {
 				return
 			}
 		case <-ticker.C:
-			client.Conn.SetWriteDeadline(time.Now().Add(writeWait))
-			if err := client.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+			player.Conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := player.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
+		case <-gameCtx.Done():
+			return
 		}
 	}
 }

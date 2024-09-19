@@ -9,65 +9,103 @@ const Playing = "playing"
 const Waiting = "waiting"
 const Closed = "closed"
 
-type GameState struct {
+type gameState struct {
 	Players       map[*User]bool `json:"players"`
 	Host          *User          `json:"host"`
-	State         *GameState     `json:"state"`
 	Status        string
 	alerts        []string
 	claimed       []string
-	numbersCalled []int64
-	playerCount   int64
+	numbersCalled []int32
+	playerCount   int32
 }
 
-func NewGameState(host *User) *GameState {
-	return &GameState{
+type GameState interface {
+	GetPlayers() map[*User]bool
+	GetHost() *User
+	GetStatus() string
+	GetPlayerCount() int32
+	GetAlerts() []string
+	GetClaimed() []string
+	GetCalledNumbers() []int32
+	UpdateGameState([]byte) bool
+}
+
+func NewGameState(host *User) GameState {
+	return &gameState{
 		Host:    host,
 		Players: make(map[*User]bool),
 		Status:  "waiting",
 	}
 }
 
-func (gameState *GameState) addNumber(number int64) {
+func (gs *gameState) GetPlayers() map[*User]bool {
+	return gs.Players
+}
+
+func (gs *gameState) GetHost() *User {
+	return gs.Host
+}
+
+func (gs *gameState) GetStatus() string {
+	return gs.Status
+}
+
+func (gs *gameState) GetPlayerCount() int32 {
+	return gs.playerCount
+}
+
+func (gs *gameState) GetAlerts() []string {
+	return gs.alerts
+}
+
+func (gs *gameState) GetClaimed() []string {
+	return gs.claimed
+}
+
+func (gs *gameState) GetCalledNumbers() []int32 {
+	return gs.numbersCalled
+}
+
+func (gs *gameState) addNumber(number int32) {
 	log.Println(fmt.Sprintf("Called %d number", number))
-	gameState.numbersCalled = append(gameState.numbersCalled, number)
+	gs.numbersCalled = append(gs.numbersCalled, number)
 }
 
-func (gameState *GameState) addAlert(alert string) {
-	gameState.alerts = append(gameState.alerts, alert)
+func (gs *gameState) addAlert(alert string) {
+	gs.alerts = append(gs.alerts, alert)
 }
 
-func (gameState *GameState) addPlayer(player *User) {
+func (gs *gameState) addPlayer(player *User) {
 	log.Println(fmt.Sprintf("User %s joined", player.Name))
 	if player.IsHost {
 		return
 	}
 }
 
-func (gameState *GameState) removePlayer(player *User) {
+func (gs *gameState) removePlayer(player *User) {
 	log.Println(fmt.Sprintf("User %s left", player.Name))
 }
 
-func (gameState *GameState) updateGameStatus(status string) {
+func (gs *gameState) updateGameStatus(status string) {
 	log.Println(fmt.Sprintf("Updating game state to %s", status))
-	gameState.Status = status
+	gs.Status = status
 }
 
-func (gameState *GameState) updateGameState(data []byte) bool {
+func (gs *gameState) UpdateGameState(data []byte) bool {
 	println(string(data))
 	message := Decode(data)
 	switch message.Event {
 	case UserJoinedEvent:
-		gameState.addPlayer(message.UserJoinedPayload.User)
+		gs.addPlayer(message.UserJoinedPayload.User)
 		break
 	case UserLeftEvent:
-		gameState.removePlayer(message.UserLeftPayload.User)
+		gs.removePlayer(message.UserLeftPayload.User)
 		break
 	case NumberCalledEvent:
-		gameState.addNumber(message.NumberPayload.Number)
+		gs.addNumber(message.NumberPayload.Number)
 		break
 	case UpdateGameStatusEvent:
-		gameState.updateGameStatus(message.GameStatusPayload.Status)
+		gs.updateGameStatus(message.GameStatusPayload.Status)
 		break
 	}
 	return message.Sender.Id == -1 || !message.Sender.IsHost

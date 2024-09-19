@@ -9,55 +9,74 @@ import (
 	"sync"
 )
 
-type GameServer struct {
-	Id        int32
-	Join      chan *User
-	Leave     chan *User
-	Broadcast chan []byte
-	Stop      chan int64
-	State     *GameState
+type gameServer struct {
+	id        int32
+	join      chan *User
+	leave     chan *User
+	broadcast chan []byte
+	state     GameState
 	Lock      sync.Mutex
-	ctx       context.Context
+	gameCtx   context.Context
 	cancel    context.CancelFunc
 }
 
-func NewGameServer(gameID int32, host *User) *GameServer {
+type GameServer interface {
+	StartGameServer(chan<- int32)
+	AddPlayer(*User)
+	RemovePlayer(*User)
+	BroadcastMessage([]byte)
+}
+
+func NewGameServer(gameID int32, host *User) GameServer {
 	log.Println(fmt.Sprintf("Making new game server with game id %d", gameID))
 	ctx, cancel := context.WithCancel(context.Background())
-	return &GameServer{
-		Id:        gameID,
-		Join:      make(chan *User),
-		Leave:     make(chan *User),
-		Broadcast: make(chan []byte),
-		Stop:      make(chan int64),
-		State:     NewGameState(host),
-		ctx:       ctx,
+	return &gameServer{
+		id:        gameID,
+		join:      make(chan *User),
+		leave:     make(chan *User),
+		broadcast: make(chan []byte),
+		state:     NewGameState(host),
+		gameCtx:   ctx,
 		cancel:    cancel,
 	}
 }
 
-func (gs *GameServer) StartGameServer(gameServiceDeleteChannel chan<- int32) {
-looper:
-	for {
-		select {
-		case user := <-gs.Join:
-			gs.registerPlayer(user)
-		case user := <-gs.Leave:
-			log.Printf("User Leaving : %#v", user)
-			gs.unregisterPlayer(user)
-		case message := <-gs.Broadcast:
-			gs.broadcast(message)
-		case <-gs.ctx.Done():
-			log.Printf("Stopping game server %d", gs.Id)
-			break looper
-		}
-	}
-	gameServiceDeleteChannel <- gs.Id
-	log.Printf("Stopped game server %d", gs.Id)
+func (gs *gameServer) BroadcastMessage(message []byte) {
+	gs.Lock.Lock()
+	gs.broadcast <- message
+	gs.Lock.Unlock()
 }
 
-func (gs *GameServer) registerPlayer(user *User) {
-	gs.addPlayerToState(user)
+func (gs *gameServer) AddPlayer(player *User) {
+	go player.ReadPump(gs.gameCtx)
+	go player.WritePump(gs.gameCtx)
+	gs.join <- player
+}
+
+func (gs *gameServer) RemovePlayer(player *User) {
+	gs.leave <- player
+}
+
+func (gs *gameServer) StartGameServer(gameServiceDeleteChannel chan<- int32) {
+	for {
+		select {
+		case user := <-gs.join:
+			gs.registerPlayer(user)
+		case user := <-gs.leave:
+			log.Printf("User Leaving : %#v", user)
+			gs.unregisterPlayer(user)
+		case message := <-gs.broadcast:
+			gs.broadcastMessage(message)
+		case <-gs.gameCtx.Done():
+			log.Printf("Stopping game server %d", gs.id)
+			gameServiceDeleteChannel <- gs.id
+			log.Printf("Stopped game server %d", gs.id)
+			return
+		}
+	}
+}
+
+func (gs *gameServer) registerPlayer(user *User) {
 	userJoinedPayload := &UserJoinedPayload{User: user}
 	message := Message{
 		UserJoinedPayload: userJoinedPayload,
@@ -73,16 +92,16 @@ func (gs *GameServer) registerPlayer(user *User) {
 		log.Println(err)
 		return
 	}
-	gs.broadcast(encodedMessage)
+	gs.broadcastMessage(encodedMessage)
 	gs.sendGameStateToJoinee(user)
 }
 
-func (gs *GameServer) sendGameStateToJoinee(player *User) {
+func (gs *gameServer) sendGameStateToJoinee(player *User) {
 	var players []*User
-	for memberPlayer := range gs.State.Players {
+	for memberPlayer := range gs.state.GetPlayers() {
 		players = append(players, memberPlayer)
 	}
-	playersAlreadyInLobbyPayload := &PlayersAlreadyInLobbyPayload{Players: players, GameId: gs.Id}
+	playersAlreadyInLobbyPayload := &PlayersAlreadyInLobbyPayload{Players: players, GameId: gs.id}
 	message := &Message{Id: rand.Int64(),
 		PlayersAlreadyInLobbyPayload: playersAlreadyInLobbyPayload,
 		Sender: &User{
@@ -97,12 +116,10 @@ func (gs *GameServer) sendGameStateToJoinee(player *User) {
 	player.Send <- encodedMessage
 }
 
-func (gs *GameServer) unregisterPlayer(player *User) {
+func (gs *gameServer) unregisterPlayer(player *User) {
 	if player.IsHost {
-		gs.killGameServer()
 		return
 	}
-	gs.removePlayerFromState(player)
 	userLeftPayload := &UserLeftPayload{User: player}
 	message := Message{
 		UserLeftPayload: userLeftPayload,
@@ -118,43 +135,19 @@ func (gs *GameServer) unregisterPlayer(player *User) {
 		log.Println(err)
 		return
 	}
-	gs.broadcast(encodedMessage)
+	gs.broadcastMessage(encodedMessage)
 }
 
-func (gs *GameServer) broadcast(data []byte) {
-	isForHost := gs.State.updateGameState(data)
+func (gs *gameServer) broadcastMessage(data []byte) {
+	isForHost := gs.state.UpdateGameState(data)
 	if !isForHost {
-		gs.State.Host.Send <- data
+		gs.state.GetHost().Send <- data
 	} else {
-		for player := range gs.State.Players {
+		for player := range gs.state.GetPlayers() {
 			log.Println(fmt.Sprintf("Sending to player %s", player.Name))
 			player.Lock.Lock()
 			player.Send <- data
 			player.Lock.Unlock()
 		}
 	}
-}
-
-func (gs *GameServer) removePlayerFromState(player *User) {
-	if gs.State.Players[player] {
-		delete(gs.State.Players, player)
-		gs.State.playerCount--
-	}
-}
-
-func (gs *GameServer) addPlayerToState(player *User) {
-	gs.State.Players[player] = true
-	gs.State.playerCount++
-}
-
-func (gs *GameServer) killGameServer() {
-	log.Println("Initiating server kill")
-	for player := range gs.State.Players {
-		err := player.Conn.Close()
-		if err != nil {
-			log.Printf("Error while kicking client %#v with error %v",
-				player, err)
-		}
-	}
-	gs.cancel()
 }

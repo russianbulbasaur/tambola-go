@@ -8,7 +8,7 @@ import (
 )
 
 type gameService struct {
-	games             map[int32]*models.GameServer
+	games             map[int32]models.GameServer
 	activeGames       int64
 	mutex             sync.Mutex
 	deleteGameChannel chan int32
@@ -20,7 +20,7 @@ type GameService interface {
 }
 
 func NewGameService() GameService {
-	gameMap := make(map[int32]*models.GameServer)
+	gameMap := make(map[int32]models.GameServer)
 	deleteChannel := make(chan int32)
 	service := &gameService{
 		games:             gameMap,
@@ -46,21 +46,18 @@ func deleteGame(gs *gameService) {
 }
 
 func (gs *gameService) CreateGame(userId int64, name string, conn *websocket.Conn) {
-	user := &models.User{
+	host := &models.User{
 		Name:   name,
 		Id:     userId,
 		Send:   make(chan []byte, 500),
 		Conn:   conn,
 		IsHost: true,
 	}
-	go user.ReadPump()
-	go user.WritePump()
 	gameId := generateGameCode()
-	gameServer := models.NewGameServer(gameId, user)
+	gameServer := models.NewGameServer(gameId, host)
 	go gameServer.StartGameServer(gs.deleteGameChannel)
-	user.GameServer = gameServer
+	host.GameServer = gameServer
 	gs.games[gameId] = gameServer
-	gameServer.Join <- user
 }
 
 func generateGameCode() int32 {
@@ -69,14 +66,12 @@ func generateGameCode() int32 {
 
 func (gs *gameService) JoinGame(code int32, userId int64, name string, conn *websocket.Conn) {
 	gameServer := gs.games[code]
-	if gameServer == nil || !(gameServer.State.Status == models.Waiting) {
+	if gameServer == nil {
 		conn.Close()
 		return
 	}
-	user := &models.User{Id: userId,
+	player := &models.User{Id: userId,
 		Name: name, GameServer: gameServer,
 		Conn: conn, Send: make(chan []byte, 500), IsHost: false}
-	go user.ReadPump()
-	go user.WritePump()
-	gameServer.Join <- user
+	gameServer.AddPlayer(player)
 }

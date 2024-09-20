@@ -2,42 +2,44 @@ package models
 
 import (
 	"context"
-	json2 "encoding/json"
 	"fmt"
 	"log"
 	"math/rand/v2"
+	"runtime"
 	"sync"
 )
 
 type gameServer struct {
-	id        int32
-	join      chan *User
-	leave     chan *User
-	broadcast chan []byte
-	state     GameState
-	Lock      sync.Mutex
-	gameCtx   context.Context
-	cancel    context.CancelFunc
+	id          int32
+	join        chan *User
+	leave       chan *User
+	broadcast   chan []byte
+	servicePipe chan<- int32
+	state       GameState
+	Lock        sync.Mutex
+	gameCtx     context.Context
+	cancel      context.CancelFunc
 }
 
 type GameServer interface {
-	StartGameServer(chan<- int32)
+	StartGameServer()
 	AddPlayer(*User)
 	RemovePlayer(*User)
 	BroadcastMessage([]byte)
 }
 
-func NewGameServer(gameID int32, host *User) GameServer {
+func NewGameServer(gameID int32, host *User, servicePipe chan<- int32) GameServer {
 	log.Println(fmt.Sprintf("Making new game server with game id %d", gameID))
 	ctx, cancel := context.WithCancel(context.Background())
 	return &gameServer{
-		id:        gameID,
-		join:      make(chan *User),
-		leave:     make(chan *User),
-		broadcast: make(chan []byte),
-		state:     NewGameState(host),
-		gameCtx:   ctx,
-		cancel:    cancel,
+		id:          gameID,
+		join:        make(chan *User),
+		leave:       make(chan *User),
+		broadcast:   make(chan []byte),
+		state:       NewGameState(host),
+		servicePipe: servicePipe,
+		gameCtx:     ctx,
+		cancel:      cancel,
 	}
 }
 
@@ -57,7 +59,7 @@ func (gs *gameServer) RemovePlayer(player *User) {
 	gs.leave <- player
 }
 
-func (gs *gameServer) StartGameServer(gameServiceDeleteChannel chan<- int32) {
+func (gs *gameServer) StartGameServer() {
 	for {
 		select {
 		case user := <-gs.join:
@@ -69,7 +71,7 @@ func (gs *gameServer) StartGameServer(gameServiceDeleteChannel chan<- int32) {
 			gs.broadcastMessage(message)
 		case <-gs.gameCtx.Done():
 			log.Printf("Stopping game server %d", gs.id)
-			gameServiceDeleteChannel <- gs.id
+			gs.servicePipe <- gs.id
 			log.Printf("Stopped game server %d", gs.id)
 			return
 		}
@@ -118,6 +120,7 @@ func (gs *gameServer) sendGameStateToJoinee(player *User) {
 
 func (gs *gameServer) unregisterPlayer(player *User) {
 	if player.IsHost {
+		gs.killServer()
 		return
 	}
 	userLeftPayload := &UserLeftPayload{User: player}
@@ -150,4 +153,10 @@ func (gs *gameServer) broadcastMessage(data []byte) {
 			player.Lock.Unlock()
 		}
 	}
+}
+
+func (gs *gameServer) killServer() {
+	log.Println("Initiating server kill")
+	log.Printf("Goroutines : %d", runtime.NumGoroutine())
+	gs.cancel()
 }

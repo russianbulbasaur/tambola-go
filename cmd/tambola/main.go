@@ -4,7 +4,6 @@ import (
 	"cmd/tambola/internals/handlers"
 	"cmd/tambola/internals/services"
 	"fmt"
-	"github.com/go-chi/chi/v5"
 	"github.com/joho/godotenv"
 	"log"
 	"net/http"
@@ -39,18 +38,20 @@ func initHandlers(gameService services.GameService) {
 	gameHandler = handlers.NewGameHandler(gameService)
 }
 
-func initRouter() http.HandlerFunc {
+func initRouter() *http.ServeMux {
 	appRouter := http.NewServeMux()
+	appRouter.Handle("/game/", http.StripPrefix("/game", gameRouter()))
+	return appRouter
 }
 
-func gameRouter() chi.Router {
-	gameRouter := chi.NewRouter()
-	gameRouter.Get("/create", gameHandler.CreateGame)
-	gameRouter.Get("/join", gameHandler.JoinGame)
+func gameRouter() *http.ServeMux {
+	gameRouter := http.NewServeMux()
+	gameRouter.HandleFunc("/create", gameHandler.CreateGame)
+	gameRouter.HandleFunc("/join", gameHandler.JoinGame)
 	return gameRouter
 }
 
-func startServer(appRouter chi.Router) {
+func startServer(appRouter *http.ServeMux) {
 	//port := os.Getenv("PORT")
 	port := "8000"
 	log.Printf("Starting server at %s", port)

@@ -3,15 +3,17 @@ package services
 import (
 	"cmd/tambola/models"
 	"github.com/gorilla/websocket"
+	"log"
 	"math/rand/v2"
+	"runtime"
 	"sync"
 )
 
 type gameService struct {
-	games             map[int32]models.GameServer
-	activeGames       int64
-	mutex             sync.Mutex
-	deleteGameChannel chan int32
+	games       map[int32]models.GameServer
+	activeGames int64
+	mutex       sync.Mutex
+	servicePipe chan int32
 }
 
 type GameService interface {
@@ -21,26 +23,29 @@ type GameService interface {
 
 func NewGameService() GameService {
 	gameMap := make(map[int32]models.GameServer)
-	deleteChannel := make(chan int32)
+	servicePipe := make(chan int32)
 	service := &gameService{
-		games:             gameMap,
-		activeGames:       0,
-		deleteGameChannel: deleteChannel,
+		games:       gameMap,
+		activeGames: 0,
+		servicePipe: servicePipe,
 	}
-	go deleteGame(service)
+	go deleteGameService(service)
 	return service
 }
 
-func deleteGame(gs *gameService) {
+func deleteGameService(gs *gameService) {
 	for {
 		select {
-		case gameId := <-gs.deleteGameChannel:
+		case gameId := <-gs.servicePipe:
+			log.Printf("Deleting game %d", gameId)
 			gs.mutex.Lock()
 			if _, exists := gs.games[gameId]; exists {
 				gs.activeGames--
 				delete(gs.games, gameId)
 			}
 			gs.mutex.Unlock()
+			log.Printf("Deleted game %d successfully", gameId)
+			log.Println("Stats : ", runtime.NumGoroutine())
 		}
 	}
 }
@@ -54,8 +59,8 @@ func (gs *gameService) CreateGame(userId int64, name string, conn *websocket.Con
 		IsHost: true,
 	}
 	gameId := generateGameCode()
-	gameServer := models.NewGameServer(gameId, host)
-	go gameServer.StartGameServer(gs.deleteGameChannel)
+	gameServer := models.NewGameServer(gameId, host, gs.servicePipe)
+	go gameServer.StartGameServer()
 	host.GameServer = gameServer
 	gs.games[gameId] = gameServer
 }

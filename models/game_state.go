@@ -1,6 +1,7 @@
 package models
 
 import (
+	"cmd/tambola/models/payloads"
 	"fmt"
 	"log"
 )
@@ -94,7 +95,7 @@ func (gs *gameState) updateGameStatus(status string) {
 func (gs *gameState) UpdateGameState(data []byte) bool {
 	println(string(data))
 	message := Decode(data)
-	switch message.Event {
+	switch message.GetEvent() {
 	case UserJoinedEvent:
 		gs.addPlayer(message.UserJoinedPayload.User)
 		break
@@ -102,7 +103,8 @@ func (gs *gameState) UpdateGameState(data []byte) bool {
 		gs.removePlayer(message.UserLeftPayload.User)
 		break
 	case NumberCalledEvent:
-		gs.addNumber(message.NumberPayload.Number)
+		payload := payloads.ParseNumberPayload(message.GetJsonPayload())
+		gs.addNumber(payload.GetNumber())
 		break
 	case UpdateGameStatusEvent:
 		gs.updateGameStatus(message.GameStatusPayload.Status)

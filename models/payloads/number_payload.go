@@ -1,0 +1,42 @@
+package payloads
+
+import (
+	"encoding/json"
+	"log"
+)
+
+type numberPayload struct {
+	Number int32 `json:"number"`
+}
+
+type NumberPayload interface {
+	GetJson() []byte
+	GetNumber() int32
+}
+
+func NewNumberPayload() NumberPayload {
+	return &numberPayload{}
+}
+
+func ParseNumberPayload(encoded string) NumberPayload {
+	var payload numberPayload
+	err := json.Unmarshal([]byte(encoded), &payload)
+	if err != nil {
+		log.Println(err)
+		return nil
+	}
+	return &payload
+}
+
+func (n *numberPayload) GetNumber() int32 {
+	return n.Number
+}
+
+func (n *numberPayload) GetJson() []byte {
+	encoded, err := json.Marshal(n)
+	if err != nil {
+		log.Println(err)
+		return nil
+	}
+	return encoded
+}

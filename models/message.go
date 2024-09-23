@@ -22,7 +22,9 @@ type message struct {
 
 type Message interface {
 	GetEvent() string
-	GetJsonPayload() string
+	GetPayloadJson() string
+	SetPayload(payload Payload)
+	EncodeToJson() []byte
 }
 
 func NewMessage(id int64, event string, sender *User, payload Payload) Message {
@@ -34,7 +36,11 @@ func NewMessage(id int64, event string, sender *User, payload Payload) Message {
 	}
 }
 
-func (m *message) GetJsonPayload() string {
+func (m *message) SetPayload(payload Payload) {
+	m.payload = payload
+}
+
+func (m *message) GetPayloadJson() string {
 	encoded, _ := json2.Marshal(m.PayloadJson)
 	return string(encoded)
 }
@@ -43,13 +49,12 @@ func (m *message) GetEvent() string {
 	return m.Event
 }
 
-func (m *message) encode() []byte {
-	m.PayloadJson = m.payload.GetJson()
-	json, err := json2.Marshal(m)
+func (m *message) EncodeToJson() []byte {
+	encoded, err := json2.Marshal(m)
 	if err != nil {
-		log.Println(err)
+		log.Fatalln(err)
 	}
-	return json
+	return encoded
 }
 
 func Decode(data []byte) Message {

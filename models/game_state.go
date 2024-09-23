@@ -11,8 +11,8 @@ const Waiting = "waiting"
 const Closed = "closed"
 
 type gameState struct {
-	Players       map[*User]bool `json:"players"`
-	Host          *User          `json:"host"`
+	players       map[*User]bool
+	host          *User
 	Status        string
 	alerts        []string
 	claimed       []string
@@ -33,18 +33,18 @@ type GameState interface {
 
 func NewGameState(host *User) GameState {
 	return &gameState{
-		Host:    host,
-		Players: make(map[*User]bool),
+		host:    host,
+		players: make(map[*User]bool),
 		Status:  "waiting",
 	}
 }
 
 func (gs *gameState) GetPlayers() map[*User]bool {
-	return gs.Players
+	return gs.players
 }
 
 func (gs *gameState) GetHost() *User {
-	return gs.Host
+	return gs.host
 }
 
 func (gs *gameState) GetStatus() string {
@@ -93,22 +93,23 @@ func (gs *gameState) updateGameStatus(status string) {
 }
 
 func (gs *gameState) UpdateGameState(data []byte) bool {
-	println(string(data))
 	message := Decode(data)
 	switch message.GetEvent() {
 	case UserJoinedEvent:
-		gs.addPlayer(message.UserJoinedPayload.User)
-		break
+		userJoinedPayload := payloads.ParseUserJoinedPayload(message.GetPayloadJson())
+		gs.addPlayer(userJoinedPayload.GetPlayer())
 	case UserLeftEvent:
-		gs.removePlayer(message.UserLeftPayload.User)
-		break
+		userLeftPayload := payloads.ParseUserLeftPayload(message.GetPayloadJson())
+		gs.removePlayer(userLeftPayload.GetPlayer())
 	case NumberCalledEvent:
-		payload := payloads.ParseNumberPayload(message.GetJsonPayload())
-		gs.addNumber(payload.GetNumber())
-		break
+		numberCalledPayload := payloads.ParseNumberPayload(message.GetPayloadJson())
+		gs.addNumber(numberCalledPayload.GetNumber())
 	case UpdateGameStatusEvent:
-		gs.updateGameStatus(message.GameStatusPayload.Status)
-		break
+		gameStatusPayload := payloads.NewGameStatusPayload(message.GetPayloadJson())
+		gs.updateGameStatus(gameStatusPayload.GetGameStatus())
+	case AlertEvent:
+		alertPayload := payloads.NewAlertPayload(message.GetPayloadJson())
+		gs.addAlert(alertPayload.GetAlert())
 	}
-	return message.Sender.Id == -1 || !message.Sender.IsHost
+	return false
 }

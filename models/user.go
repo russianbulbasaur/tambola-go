@@ -53,6 +53,7 @@ func (player *User) ReadPump(gameCtx context.Context) {
 	for {
 		select {
 		case <-gameCtx.Done():
+			log.Printf("Killing %s's read thread", player.Name)
 			return
 		default:
 			_, jsonMessage, err := player.Conn.ReadMessage()
@@ -98,6 +99,7 @@ func (player *User) WritePump(gameCtx context.Context) {
 				return
 			}
 		case <-gameCtx.Done():
+			log.Printf("Killing %s's write thread", player.Name)
 			return
 		}
 	}

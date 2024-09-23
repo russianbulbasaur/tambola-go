@@ -1,8 +1,40 @@
 package payloads
 
-import "cmd/tambola/models"
+import (
+	"cmd/tambola/models"
+	"encoding/json"
+	"log"
+)
 
-type PlayersAlreadyInLobbyPayload struct {
+type playersAlreadyInLobbyPayload struct {
 	Players []*models.User `json:"players"`
 	GameId  int32          `json:"game_id"`
+}
+
+type PlayersAlreadyInLobbyPayload interface {
+	GetJson() []byte
+}
+
+func NewPlayersAlreadyInLobbyPayload(users []*models.User,
+	gameId int32) PlayersAlreadyInLobbyPayload {
+	return &playersAlreadyInLobbyPayload{users, gameId}
+}
+
+func ParsePlayersAlreadyInLobbyPayload(encoded string) PlayersAlreadyInLobbyPayload {
+	var payload playersAlreadyInLobbyPayload
+	err := json.Unmarshal([]byte(encoded), &payload)
+	if err != nil {
+		log.Println(err)
+		return nil
+	}
+	return &payload
+}
+
+func (u *playersAlreadyInLobbyPayload) GetJson() []byte {
+	encoded, err := json.Marshal(u)
+	if err != nil {
+		log.Println(err)
+		return nil
+	}
+	return encoded
 }

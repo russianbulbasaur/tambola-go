@@ -14,8 +14,8 @@ type NumberPayload interface {
 	GetNumber() int32
 }
 
-func NewNumberPayload() NumberPayload {
-	return &numberPayload{}
+func NewNumberPayload(number int32) NumberPayload {
+	return &numberPayload{number}
 }
 
 func ParseNumberPayload(encoded string) NumberPayload {

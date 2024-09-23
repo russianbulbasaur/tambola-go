@@ -1,6 +1,7 @@
 package models
 
 import (
+	"cmd/tambola/models/payloads"
 	"context"
 	"fmt"
 	"log"
@@ -79,22 +80,13 @@ func (gs *gameServer) StartGameServer() {
 }
 
 func (gs *gameServer) registerPlayer(user *User) {
-	userJoinedPayload := &UserJoinedPayload{User: user}
-	message := Message{
-		UserJoinedPayload: userJoinedPayload,
-		Id:                -1,
-		Event:             UserJoinedEvent,
-		Sender: &User{
-			Id:   -1,
-			Name: "Server",
-		},
+	serverUser := &User{
+		Id:   -1,
+		Name: "Server",
 	}
-	encodedMessage, err := json2.Marshal(message)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	gs.broadcastMessage(encodedMessage)
+	userJoinedPayload := payloads.NewUserJoinedPayload(user)
+	message := NewMessage(-1, UserJoinedEvent, serverUser, userJoinedPayload)
+	gs.broadcastMessage(message.EncodeToJson())
 	gs.sendGameStateToJoinee(user)
 }
 
@@ -103,19 +95,15 @@ func (gs *gameServer) sendGameStateToJoinee(player *User) {
 	for memberPlayer := range gs.state.GetPlayers() {
 		players = append(players, memberPlayer)
 	}
-	playersAlreadyInLobbyPayload := &PlayersAlreadyInLobbyPayload{Players: players, GameId: gs.id}
-	message := &Message{Id: rand.Int64(),
-		PlayersAlreadyInLobbyPayload: playersAlreadyInLobbyPayload,
-		Sender: &User{
-			Id:   -1,
-			Name: "Server",
-		}, Event: PlayersInLobbyEvent}
-	encodedMessage, err := json2.Marshal(message)
-	if err != nil {
-		log.Println(err)
-		return
+	playersAlreadyInLobbyPayload := payloads.NewPlayersAlreadyInLobbyPayload(players, gs.id)
+	serverUser := &User{
+		Id:   -1,
+		Name: "Server",
 	}
-	player.Send <- encodedMessage
+	message := NewMessage(rand.Int64(),
+		PlayersInLobbyEvent,
+		serverUser, playersAlreadyInLobbyPayload)
+	player.Send <- message.EncodeToJson()
 }
 
 func (gs *gameServer) unregisterPlayer(player *User) {
@@ -123,22 +111,13 @@ func (gs *gameServer) unregisterPlayer(player *User) {
 		gs.killServer()
 		return
 	}
-	userLeftPayload := &UserLeftPayload{User: player}
-	message := Message{
-		UserLeftPayload: userLeftPayload,
-		Id:              -1,
-		Event:           UserLeftEvent,
-		Sender: &User{
-			Id:   -1,
-			Name: "Server",
-		},
+	serverUser := &User{
+		Id:   -1,
+		Name: "Server",
 	}
-	encodedMessage, err := json2.Marshal(message)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	gs.broadcastMessage(encodedMessage)
+	userLeftPayload := payloads.NewUserLeftPayload(player)
+	message := NewMessage(-1, UserLeftEvent, serverUser, userLeftPayload)
+	gs.broadcastMessage(message.EncodeToJson())
 }
 
 func (gs *gameServer) broadcastMessage(data []byte) {

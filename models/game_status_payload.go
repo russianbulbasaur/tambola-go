@@ -10,7 +10,7 @@ type gameStatusPayload struct {
 }
 
 type GameStatusPayload interface {
-	GetJson() []byte
+	GetJson() map[string]interface{}
 	GetGameStatus() string
 }
 
@@ -32,11 +32,17 @@ func (g *gameStatusPayload) GetGameStatus() string {
 	return g.Status
 }
 
-func (g *gameStatusPayload) GetJson() []byte {
+func (g *gameStatusPayload) GetJson() map[string]interface{} {
 	encoded, err := json.Marshal(g)
 	if err != nil {
 		log.Println(err)
 		return nil
 	}
-	return encoded
+	var rawJson map[string]interface{}
+	err = json.Unmarshal(encoded, &rawJson)
+	if err != nil {
+		log.Println(err)
+		return nil
+	}
+	return rawJson
 }

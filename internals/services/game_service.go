@@ -60,7 +60,11 @@ func (gs *gameService) CreateGame(userId int64, name string, conn *websocket.Con
 	}
 	gameId := generateGameCode()
 	gameServer := models.NewGameServer(gameId, host, gs.servicePipe)
+
 	go gameServer.StartGameServer()
+	gameServer.AddPlayer(host)
+
+	//Add game to list of games
 	host.GameServer = gameServer
 	gs.games[gameId] = gameServer
 }

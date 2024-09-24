@@ -1,5 +1,5 @@
 package models
 
 type Payload interface {
-	GetJson() []byte
+	GetJson() map[string]interface{}
 }

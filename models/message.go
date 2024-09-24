@@ -50,10 +50,12 @@ func (m *message) GetEvent() string {
 }
 
 func (m *message) EncodeToJson() []byte {
+	m.PayloadJson = m.payload.GetJson()
 	encoded, err := json2.Marshal(m)
 	if err != nil {
 		log.Fatalln(err)
 	}
+	log.Printf("Encoded Message : %s", encoded)
 	return encoded
 }
 

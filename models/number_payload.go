@@ -10,7 +10,7 @@ type numberPayload struct {
 }
 
 type NumberPayload interface {
-	GetJson() []byte
+	GetJson() map[string]interface{}
 	GetNumber() int32
 }
 
@@ -32,11 +32,17 @@ func (n *numberPayload) GetNumber() int32 {
 	return n.Number
 }
 
-func (n *numberPayload) GetJson() []byte {
+func (n *numberPayload) GetJson() map[string]interface{} {
 	encoded, err := json.Marshal(n)
 	if err != nil {
 		log.Println(err)
 		return nil
 	}
-	return encoded
+	var rawJson map[string]interface{}
+	err = json.Unmarshal(encoded, &rawJson)
+	if err != nil {
+		log.Println(err)
+		return nil
+	}
+	return rawJson
 }

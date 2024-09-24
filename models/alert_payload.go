@@ -9,7 +9,7 @@ type alertPayload struct {
 	Alert string `json:"alert"`
 }
 type AlertPayload interface {
-	GetJson() []byte
+	GetJson() map[string]interface{}
 	GetAlert() string
 }
 
@@ -31,11 +31,17 @@ func (a *alertPayload) GetAlert() string {
 	return a.Alert
 }
 
-func (a *alertPayload) GetJson() []byte {
+func (a *alertPayload) GetJson() map[string]interface{} {
 	encoded, err := json.Marshal(a)
 	if err != nil {
 		log.Println(err)
 		return nil
 	}
-	return encoded
+	var rawJson map[string]interface{}
+	err = json.Unmarshal(encoded, &rawJson)
+	if err != nil {
+		log.Println(err)
+		return nil
+	}
+	return rawJson
 }

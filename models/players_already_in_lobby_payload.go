@@ -11,7 +11,7 @@ type playersAlreadyInLobbyPayload struct {
 }
 
 type PlayersAlreadyInLobbyPayload interface {
-	GetJson() []byte
+	GetJson() map[string]interface{}
 }
 
 func NewPlayersAlreadyInLobbyPayload(users []*User,
@@ -29,11 +29,17 @@ func ParsePlayersAlreadyInLobbyPayload(encoded string) PlayersAlreadyInLobbyPayl
 	return &payload
 }
 
-func (u *playersAlreadyInLobbyPayload) GetJson() []byte {
+func (u *playersAlreadyInLobbyPayload) GetJson() map[string]interface{} {
 	encoded, err := json.Marshal(u)
 	if err != nil {
 		log.Println(err)
 		return nil
 	}
-	return encoded
+	var rawJson map[string]interface{}
+	err = json.Unmarshal(encoded, &rawJson)
+	if err != nil {
+		log.Println(err)
+		return nil
+	}
+	return rawJson
 }

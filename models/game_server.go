@@ -1,6 +1,7 @@
 package models
 
 import (
+	"cmd/tambola/utils"
 	"context"
 	"fmt"
 	"log"
@@ -17,6 +18,7 @@ type gameServer struct {
 	servicePipe chan<- int32
 	state       GameState
 	Lock        sync.Mutex
+	gameLogger  *utils.TambolaLogger
 	gameCtx     context.Context
 	cancel      context.CancelFunc
 }
@@ -31,6 +33,7 @@ type GameServer interface {
 func NewGameServer(gameID int32, host *User, servicePipe chan<- int32) GameServer {
 	log.Println(fmt.Sprintf("Making new game server with game id %d", gameID))
 	ctx, cancel := context.WithCancel(context.Background())
+	childCtx := context.WithValue(ctx, "game_id", gameID)
 	return &gameServer{
 		id:          gameID,
 		join:        make(chan *User),
@@ -38,8 +41,9 @@ func NewGameServer(gameID int32, host *User, servicePipe chan<- int32) GameServe
 		broadcast:   make(chan []byte),
 		state:       NewGameState(host),
 		servicePipe: servicePipe,
-		gameCtx:     ctx,
+		gameCtx:     childCtx,
 		cancel:      cancel,
+		gameLogger:  utils.NewTambolaLogger(childCtx),
 	}
 }
 
@@ -63,16 +67,17 @@ func (gs *gameServer) StartGameServer() {
 	for {
 		select {
 		case user := <-gs.join:
+			gs.gameLogger.Log(fmt.Sprintf("User Joining : %#v", user))
 			gs.registerPlayer(user)
 		case user := <-gs.leave:
-			log.Printf("User Leaving : %#v", user)
+			gs.gameLogger.Log(fmt.Sprintf("User Leaving : %#v", user))
 			gs.unregisterPlayer(user)
 		case message := <-gs.broadcast:
 			gs.broadcastMessage(message)
 		case <-gs.gameCtx.Done():
-			log.Printf("Stopping game server %d", gs.id)
+			gs.gameLogger.Log(fmt.Sprintf("Stopping game server %d", gs.id))
 			gs.servicePipe <- gs.id
-			log.Printf("Stopped game server %d", gs.id)
+			gs.gameLogger.Log(fmt.Sprintf("Stopped game server %d", gs.id))
 			return
 		}
 	}
@@ -125,7 +130,6 @@ func (gs *gameServer) broadcastMessage(data []byte) {
 		gs.state.GetHost().Send <- data
 	} else {
 		for player := range gs.state.GetPlayers() {
-			log.Println(fmt.Sprintf("Sending to player %s", player.Name))
 			player.Lock.Lock()
 			player.Send <- data
 			player.Lock.Unlock()
@@ -134,7 +138,7 @@ func (gs *gameServer) broadcastMessage(data []byte) {
 }
 
 func (gs *gameServer) killServer() {
-	log.Println("Initiating server kill")
-	log.Printf("Goroutines : %d", runtime.NumGoroutine())
+	gs.gameLogger.Log("Initiating server kill")
+	gs.gameLogger.Log(fmt.Sprintf("Goroutines : %d", runtime.NumGoroutine()))
 	gs.cancel()
 }

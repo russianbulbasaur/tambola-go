@@ -1,4 +1,4 @@
-package payloads
+package models
 
 import (
 	"encoding/json"

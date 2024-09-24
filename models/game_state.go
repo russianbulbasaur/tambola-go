@@ -1,7 +1,6 @@
 package models
 
 import (
-	"cmd/tambola/models/payloads"
 	"fmt"
 	"log"
 )
@@ -96,19 +95,19 @@ func (gs *gameState) UpdateGameState(data []byte) bool {
 	message := Decode(data)
 	switch message.GetEvent() {
 	case UserJoinedEvent:
-		userJoinedPayload := payloads.ParseUserJoinedPayload(message.GetPayloadJson())
+		userJoinedPayload := ParseUserJoinedPayload(message.GetPayloadJson())
 		gs.addPlayer(userJoinedPayload.GetPlayer())
 	case UserLeftEvent:
-		userLeftPayload := payloads.ParseUserLeftPayload(message.GetPayloadJson())
+		userLeftPayload := ParseUserLeftPayload(message.GetPayloadJson())
 		gs.removePlayer(userLeftPayload.GetPlayer())
 	case NumberCalledEvent:
-		numberCalledPayload := payloads.ParseNumberPayload(message.GetPayloadJson())
+		numberCalledPayload := ParseNumberPayload(message.GetPayloadJson())
 		gs.addNumber(numberCalledPayload.GetNumber())
 	case UpdateGameStatusEvent:
-		gameStatusPayload := payloads.NewGameStatusPayload(message.GetPayloadJson())
+		gameStatusPayload := NewGameStatusPayload(message.GetPayloadJson())
 		gs.updateGameStatus(gameStatusPayload.GetGameStatus())
 	case AlertEvent:
-		alertPayload := payloads.NewAlertPayload(message.GetPayloadJson())
+		alertPayload := NewAlertPayload(message.GetPayloadJson())
 		gs.addAlert(alertPayload.GetAlert())
 	}
 	return false

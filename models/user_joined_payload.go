@@ -1,21 +1,20 @@
-package payloads
+package models
 
 import (
-	"cmd/tambola/models"
 	"encoding/json"
 	"log"
 )
 
 type userJoinedPayload struct {
-	User *models.User `json:"user"`
+	User *User `json:"user"`
 }
 
 type UserJoinedPayload interface {
 	GetJson() []byte
-	GetPlayer() *models.User
+	GetPlayer() *User
 }
 
-func NewUserJoinedPayload(user *models.User) UserJoinedPayload {
+func NewUserJoinedPayload(user *User) UserJoinedPayload {
 	return &userJoinedPayload{user}
 }
 
@@ -29,7 +28,7 @@ func ParseUserJoinedPayload(encoded string) UserJoinedPayload {
 	return &payload
 }
 
-func (u *userJoinedPayload) GetPlayer() *models.User {
+func (u *userJoinedPayload) GetPlayer() *User {
 	return u.User
 }
 

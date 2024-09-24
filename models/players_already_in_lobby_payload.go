@@ -1,21 +1,20 @@
-package payloads
+package models
 
 import (
-	"cmd/tambola/models"
 	"encoding/json"
 	"log"
 )
 
 type playersAlreadyInLobbyPayload struct {
-	Players []*models.User `json:"players"`
-	GameId  int32          `json:"game_id"`
+	Players []*User `json:"players"`
+	GameId  int32   `json:"game_id"`
 }
 
 type PlayersAlreadyInLobbyPayload interface {
 	GetJson() []byte
 }
 
-func NewPlayersAlreadyInLobbyPayload(users []*models.User,
+func NewPlayersAlreadyInLobbyPayload(users []*User,
 	gameId int32) PlayersAlreadyInLobbyPayload {
 	return &playersAlreadyInLobbyPayload{users, gameId}
 }

@@ -1,7 +1,6 @@
 package models
 
 import (
-	"cmd/tambola/models/payloads"
 	"context"
 	"fmt"
 	"log"
@@ -84,7 +83,7 @@ func (gs *gameServer) registerPlayer(user *User) {
 		Id:   -1,
 		Name: "Server",
 	}
-	userJoinedPayload := payloads.NewUserJoinedPayload(user)
+	userJoinedPayload := NewUserJoinedPayload(user)
 	message := NewMessage(-1, UserJoinedEvent, serverUser, userJoinedPayload)
 	gs.broadcastMessage(message.EncodeToJson())
 	gs.sendGameStateToJoinee(user)
@@ -95,7 +94,7 @@ func (gs *gameServer) sendGameStateToJoinee(player *User) {
 	for memberPlayer := range gs.state.GetPlayers() {
 		players = append(players, memberPlayer)
 	}
-	playersAlreadyInLobbyPayload := payloads.NewPlayersAlreadyInLobbyPayload(players, gs.id)
+	playersAlreadyInLobbyPayload := NewPlayersAlreadyInLobbyPayload(players, gs.id)
 	serverUser := &User{
 		Id:   -1,
 		Name: "Server",
@@ -115,7 +114,7 @@ func (gs *gameServer) unregisterPlayer(player *User) {
 		Id:   -1,
 		Name: "Server",
 	}
-	userLeftPayload := payloads.NewUserLeftPayload(player)
+	userLeftPayload := NewUserLeftPayload(player)
 	message := NewMessage(-1, UserLeftEvent, serverUser, userLeftPayload)
 	gs.broadcastMessage(message.EncodeToJson())
 }

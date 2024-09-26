@@ -80,8 +80,8 @@ func (gs *gameServer) StartGameServer() {
 			gs.broadcastMessage(message)
 		case <-gs.gameCtx.Done():
 			gs.gameLogger.Log(fmt.Sprintf("Stopping game server %d", gs.id))
+			gs.gameLogger.Close()
 			gs.servicePipe <- gs.id
-			gs.gameLogger.Log(fmt.Sprintf("Stopped game server %d", gs.id))
 			return
 		}
 	}

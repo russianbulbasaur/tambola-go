@@ -12,6 +12,7 @@ import (
 
 type TambolaLogger struct {
 	gameId int32
+	file   *os.File
 	writer *bufio.Writer
 }
 
@@ -29,6 +30,7 @@ func NewTambolaLogger(gameContext context.Context) *TambolaLogger {
 	}
 	writer := bufio.NewWriter(file)
 	return &TambolaLogger{gameId: gameId.(int32),
+		file:   file,
 		writer: writer}
 }
 
@@ -40,6 +42,11 @@ func (tl *TambolaLogger) Log(text string) {
 		log.Fatalln(err)
 	}
 	log.Println(gameId, ":", text)
+}
+
+func (tl *TambolaLogger) Close() {
+	tl.writer.Flush()
+	tl.file.Close()
 }
 
 func formatLogEntry(text string, gameId any) string {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/gorilla/websocket"
 	"log"
+	"runtime"
 	"sync"
 	"time"
 )
@@ -40,6 +41,7 @@ type User struct {
 
 func (player *User) disconnect() {
 	player.GameServer.Log(fmt.Sprintf("Killing %s's read thread", player.Name))
+	log.Println("Goroutines : ", runtime.NumGoroutine())
 	player.GameServer.RemovePlayer(player)
 	player.Conn.Close()
 }
@@ -74,6 +76,7 @@ func (player *User) WritePump(gameCtx context.Context) {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		player.GameServer.Log(fmt.Sprintf("Killing %s's write thread", player.Name))
+		log.Println("Goroutines : ", runtime.NumGoroutine())
 		ticker.Stop()
 		player.disconnect()
 	}()

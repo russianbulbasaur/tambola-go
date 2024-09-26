@@ -44,11 +44,6 @@ func (tl *TambolaLogger) Log(text string) {
 	log.Println(gameId, ":", text)
 }
 
-func (tl *TambolaLogger) Close() {
-	tl.writer.Flush()
-	tl.file.Close()
-}
-
 func formatLogEntry(text string, gameId any) string {
 	return fmt.Sprintf(
 		"%v \n%s \n----------- \n", time.TimeOnly, text)

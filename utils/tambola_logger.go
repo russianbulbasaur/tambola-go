@@ -11,14 +11,15 @@ import (
 )
 
 type TambolaLogger struct {
-	gameContext context.Context
-	writer      *bufio.Writer
+	gameId int32
+	writer *bufio.Writer
 }
 
 func NewTambolaLogger(gameContext context.Context) *TambolaLogger {
 	directory := "logs"
+	gameId := gameContext.Value("game_id")
 	err := os.Mkdir(directory, 0777)
-	fileName := fmt.Sprintf("%v.log", time.DateOnly)
+	fileName := fmt.Sprintf("%d.log", gameId)
 	filePath := filepath.Join(directory, fileName)
 	file, err := os.OpenFile(filePath,
 		os.O_APPEND|os.O_CREATE|os.O_RDWR,
@@ -27,12 +28,12 @@ func NewTambolaLogger(gameContext context.Context) *TambolaLogger {
 		log.Fatalln("Unable to create logs file", err)
 	}
 	writer := bufio.NewWriter(file)
-	return &TambolaLogger{gameContext: gameContext,
+	return &TambolaLogger{gameId: gameId.(int32),
 		writer: writer}
 }
 
 func (tl *TambolaLogger) Log(text string) {
-	gameId := tl.gameContext.Value("game_id")
+	gameId := tl.gameId
 	_, err := tl.writer.Write([]byte(formatLogEntry(text, gameId)))
 	err = tl.writer.Flush()
 	if err != nil {
@@ -43,5 +44,5 @@ func (tl *TambolaLogger) Log(text string) {
 
 func formatLogEntry(text string, gameId any) string {
 	return fmt.Sprintf(
-		"%v \nGame %d \n%s \n----------- \n", time.TimeOnly, gameId, text)
+		"%v \n%s \n----------- \n", time.TimeOnly, text)
 }

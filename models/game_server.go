@@ -28,23 +28,29 @@ type GameServer interface {
 	AddPlayer(*User)
 	RemovePlayer(*User)
 	BroadcastMessage([]byte)
+	Log(string)
 }
 
 func NewGameServer(gameID int32, host *User, servicePipe chan<- int32) GameServer {
 	log.Println(fmt.Sprintf("Making new game server with game id %d", gameID))
 	ctx, cancel := context.WithCancel(context.Background())
 	childCtx := context.WithValue(ctx, "game_id", gameID)
+	logger := utils.NewTambolaLogger(childCtx)
 	return &gameServer{
 		id:          gameID,
 		join:        make(chan *User),
 		leave:       make(chan *User),
 		broadcast:   make(chan []byte),
-		state:       NewGameState(host),
+		state:       NewGameState(host, logger),
 		servicePipe: servicePipe,
 		gameCtx:     childCtx,
 		cancel:      cancel,
-		gameLogger:  utils.NewTambolaLogger(childCtx),
+		gameLogger:  logger,
 	}
+}
+
+func (gs *gameServer) Log(text string) {
+	gs.gameLogger.Log(text)
 }
 
 func (gs *gameServer) BroadcastMessage(message []byte) {
@@ -67,10 +73,8 @@ func (gs *gameServer) StartGameServer() {
 	for {
 		select {
 		case user := <-gs.join:
-			gs.gameLogger.Log(fmt.Sprintf("User Joining : %#v", user))
 			gs.registerPlayer(user)
 		case user := <-gs.leave:
-			gs.gameLogger.Log(fmt.Sprintf("User Leaving : %#v", user))
 			gs.unregisterPlayer(user)
 		case message := <-gs.broadcast:
 			gs.broadcastMessage(message)
@@ -90,12 +94,16 @@ func (gs *gameServer) registerPlayer(user *User) {
 	}
 	userJoinedPayload := NewUserJoinedPayload(user)
 	message := NewMessage(-1, UserJoinedEvent, serverUser, userJoinedPayload)
+
+	//server register
+	gs.state.AddPlayer(user)
+
 	gs.broadcastMessage(message.EncodeToJson())
 	gs.sendGameStateToJoinee(user)
 }
 
 func (gs *gameServer) sendGameStateToJoinee(player *User) {
-	var players []*User
+	players := make([]*User, 0)
 	for memberPlayer := range gs.state.GetPlayers() {
 		players = append(players, memberPlayer)
 	}
@@ -115,6 +123,10 @@ func (gs *gameServer) unregisterPlayer(player *User) {
 		gs.killServer()
 		return
 	}
+
+	//server register
+	gs.state.RemovePlayer(player)
+
 	serverUser := &User{
 		Id:   -1,
 		Name: "Server",
@@ -125,15 +137,12 @@ func (gs *gameServer) unregisterPlayer(player *User) {
 }
 
 func (gs *gameServer) broadcastMessage(data []byte) {
-	isForHost := gs.state.UpdateGameState(data)
-	if !isForHost {
-		gs.state.GetHost().Send <- data
-	} else {
-		for player := range gs.state.GetPlayers() {
-			player.Lock.Lock()
-			player.Send <- data
-			player.Lock.Unlock()
-		}
+	gs.state.UpdateGameState(data)
+	playersInGame := gs.state.GetPlayers()
+	for player := range playersInGame {
+		player.Lock.Lock()
+		player.Send <- data
+		player.Lock.Unlock()
 	}
 }
 

@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"fmt"
 	"github.com/gorilla/websocket"
 	"log"
 	"sync"
@@ -38,6 +39,7 @@ type User struct {
 }
 
 func (player *User) disconnect() {
+	player.GameServer.Log(fmt.Sprintf("Killing %s's read thread", player.Name))
 	player.GameServer.RemovePlayer(player)
 	player.Conn.Close()
 }
@@ -53,7 +55,6 @@ func (player *User) ReadPump(gameCtx context.Context) {
 	for {
 		select {
 		case <-gameCtx.Done():
-			log.Printf("Killing %s's read thread", player.Name)
 			return
 		default:
 			_, jsonMessage, err := player.Conn.ReadMessage()
@@ -61,6 +62,7 @@ func (player *User) ReadPump(gameCtx context.Context) {
 				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 					log.Printf("unexpected close error: %v", err)
 				}
+
 				return
 			}
 			player.GameServer.BroadcastMessage(jsonMessage)
@@ -71,6 +73,7 @@ func (player *User) ReadPump(gameCtx context.Context) {
 func (player *User) WritePump(gameCtx context.Context) {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
+		player.GameServer.Log(fmt.Sprintf("Killing %s's write thread", player.Name))
 		ticker.Stop()
 		player.disconnect()
 	}()
@@ -99,7 +102,6 @@ func (player *User) WritePump(gameCtx context.Context) {
 				return
 			}
 		case <-gameCtx.Done():
-			log.Printf("Killing %s's write thread", player.Name)
 			return
 		}
 	}

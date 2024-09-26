@@ -45,7 +45,7 @@ func deleteGameService(gs *gameService) {
 			}
 			gs.mutex.Unlock()
 			log.Printf("Deleted game %d successfully", gameId)
-			log.Println("Stats : ", runtime.NumGoroutine())
+			log.Println("Goroutines : ", runtime.NumGoroutine())
 		}
 	}
 }

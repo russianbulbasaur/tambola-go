@@ -55,7 +55,6 @@ func (m *message) EncodeToJson() []byte {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	log.Printf("Encoded Message : %s", encoded)
 	return encoded
 }
 

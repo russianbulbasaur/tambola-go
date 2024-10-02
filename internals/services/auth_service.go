@@ -18,11 +18,11 @@ func NewAuthService(authRepo repositories.AuthRepository) AuthService {
 }
 
 func (as *authService) Login(phone string, otp string, firebaseToken string) ([]byte, error) {
-
+	return []byte("hi"), nil
 }
 
 func (as *authService) Signup(signupToken string) ([]byte, error) {
-
+	return []byte("hi"), nil
 }
 
 func firebaseVerify() {

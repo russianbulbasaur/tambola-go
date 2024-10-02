@@ -30,23 +30,33 @@ var (
 )
 
 type User struct {
-	Id         int64           `json:"id"`
-	Name       string          `json:"name"`
+	Id     int64  `json:"id"`
+	Name   string `json:"name"`
+	Phone  string `json:"phone"`
+	Token  string `json:"token"`
+	IsHost bool   `json:"is_host"`
+}
+
+func (user *User) getName() string {
+	return user.Name
+}
+
+type Player struct {
+	*User
 	Conn       *websocket.Conn `json:"-"`
 	GameServer GameServer      `json:"-"`
 	Send       chan []byte     `json:"-"`
-	IsHost     bool            `json:"is_host"`
 	Lock       sync.Mutex      `json:"-"`
 }
 
-func (player *User) disconnect() {
-	player.GameServer.Log(fmt.Sprintf("Killing %s's read thread", player.Name))
+func (player *Player) disconnect() {
+	player.GameServer.Log(fmt.Sprintf("Killing %s's read thread", player.getName()))
 	log.Println("Goroutines : ", runtime.NumGoroutine())
 	player.GameServer.RemovePlayer(player)
 	player.Conn.Close()
 }
 
-func (player *User) ReadPump(gameCtx context.Context) {
+func (player *Player) ReadPump(gameCtx context.Context) {
 	defer player.disconnect()
 
 	player.Conn.SetReadLimit(maxMessageSize)
@@ -72,10 +82,10 @@ func (player *User) ReadPump(gameCtx context.Context) {
 	}
 }
 
-func (player *User) WritePump(gameCtx context.Context) {
+func (player *Player) WritePump(gameCtx context.Context) {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
-		player.GameServer.Log(fmt.Sprintf("Killing %s's write thread", player.Name))
+		player.GameServer.Log(fmt.Sprintf("Killing %s's write thread", player.getName()))
 		log.Println("Goroutines : ", runtime.NumGoroutine())
 		ticker.Stop()
 		player.disconnect()

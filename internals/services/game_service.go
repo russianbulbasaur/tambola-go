@@ -51,12 +51,14 @@ func deleteGameService(gs *gameService) {
 }
 
 func (gs *gameService) CreateGame(userId int64, name string, conn *websocket.Conn) {
-	host := &models.User{
-		Name:   name,
-		Id:     userId,
-		Send:   make(chan []byte, 500),
-		Conn:   conn,
-		IsHost: true,
+	host := &models.Player{
+		User: &models.User{
+			Name:   name,
+			Id:     userId,
+			IsHost: true,
+		},
+		Send: make(chan []byte, 500),
+		Conn: conn,
 	}
 	gameId := generateGameCode()
 	gameServer := models.NewGameServer(gameId, host, gs.servicePipe)
@@ -79,8 +81,13 @@ func (gs *gameService) JoinGame(code int32, userId int64, name string, conn *web
 		conn.Close()
 		return
 	}
-	player := &models.User{Id: userId,
-		Name: name, GameServer: gameServer,
-		Conn: conn, Send: make(chan []byte, 500), IsHost: false}
+	player := &models.Player{
+		User: &models.User{
+			Id:     userId,
+			Name:   name,
+			IsHost: false,
+		},
+		GameServer: gameServer,
+		Conn:       conn, Send: make(chan []byte, 500)}
 	gameServer.AddPlayer(player)
 }

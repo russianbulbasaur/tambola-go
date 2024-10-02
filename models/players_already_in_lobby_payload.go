@@ -6,15 +6,15 @@ import (
 )
 
 type playersAlreadyInLobbyPayload struct {
-	Players []*User `json:"players"`
-	GameId  int32   `json:"game_id"`
+	Players []*Player `json:"players"`
+	GameId  int32     `json:"game_id"`
 }
 
 type PlayersAlreadyInLobbyPayload interface {
 	GetJson() map[string]interface{}
 }
 
-func NewPlayersAlreadyInLobbyPayload(users []*User,
+func NewPlayersAlreadyInLobbyPayload(users []*Player,
 	gameId int32) PlayersAlreadyInLobbyPayload {
 	return &playersAlreadyInLobbyPayload{users, gameId}
 }

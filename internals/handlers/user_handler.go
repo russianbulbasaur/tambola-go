@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"cmd/tambola/internals/services"
-	"net/http"
 )
 
 type userHandler struct {
@@ -16,8 +15,4 @@ func NewUserHandler(userService services.UserService) UserHandler {
 	return &userHandler{
 		userService: userService,
 	}
-}
-
-func (uh *userHandler) login(w http.ResponseWriter, r *http.Request) {
-
 }

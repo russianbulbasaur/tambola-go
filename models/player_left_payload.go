@@ -5,21 +5,21 @@ import (
 	"log"
 )
 
-type userLeftPayload struct {
-	User *User `json:"user"`
+type playerLeftPayload struct {
+	Player *Player `json:"player"`
 }
 
-type UserLeftPayload interface {
+type PlayerLeftPayload interface {
 	GetJson() map[string]interface{}
-	GetPlayer() *User
+	GetPlayer() *Player
 }
 
-func NewUserLeftPayload(user *User) UserLeftPayload {
-	return &userLeftPayload{user}
+func NewPlayerLeftPayload(player *Player) PlayerLeftPayload {
+	return &playerLeftPayload{player}
 }
 
-func ParseUserLeftPayload(encoded string) UserLeftPayload {
-	var payload userLeftPayload
+func ParsePlayerLeftPayload(encoded string) PlayerLeftPayload {
+	var payload playerLeftPayload
 	err := json.Unmarshal([]byte(encoded), &payload)
 	if err != nil {
 		log.Println(err)
@@ -28,11 +28,11 @@ func ParseUserLeftPayload(encoded string) UserLeftPayload {
 	return &payload
 }
 
-func (u *userLeftPayload) GetPlayer() *User {
-	return u.User
+func (u *playerLeftPayload) GetPlayer() *Player {
+	return u.Player
 }
 
-func (u *userLeftPayload) GetJson() map[string]interface{} {
+func (u *playerLeftPayload) GetJson() map[string]interface{} {
 	encoded, err := json.Marshal(u)
 	if err != nil {
 		log.Println(err)

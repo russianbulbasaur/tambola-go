@@ -10,8 +10,8 @@ const Waiting = "waiting"
 const Closed = "closed"
 
 type gameState struct {
-	players       map[*User]bool
-	host          *User
+	players       map[*Player]bool
+	host          *Player
 	Status        string
 	alerts        []string
 	claimed       []string
@@ -21,32 +21,32 @@ type gameState struct {
 }
 
 type GameState interface {
-	GetPlayers() map[*User]bool
-	GetHost() *User
+	GetPlayers() map[*Player]bool
+	GetHost() *Player
 	GetStatus() string
 	GetPlayerCount() int32
 	GetAlerts() []string
 	GetClaimed() []string
 	GetCalledNumbers() []int32
-	AddPlayer(player *User)
-	RemovePlayer(player *User)
+	AddPlayer(player *Player)
+	RemovePlayer(player *Player)
 	UpdateGameState(data []byte) bool
 }
 
-func NewGameState(host *User, logger *utils.TambolaLogger) GameState {
+func NewGameState(host *Player, logger *utils.TambolaLogger) GameState {
 	return &gameState{
 		host:       host,
-		players:    make(map[*User]bool),
+		players:    make(map[*Player]bool),
 		Status:     "waiting",
 		gameLogger: logger,
 	}
 }
 
-func (gs *gameState) GetPlayers() map[*User]bool {
+func (gs *gameState) GetPlayers() map[*Player]bool {
 	return gs.players
 }
 
-func (gs *gameState) GetHost() *User {
+func (gs *gameState) GetHost() *Player {
 	return gs.host
 }
 
@@ -79,16 +79,16 @@ func (gs *gameState) addAlert(alert string) {
 	gs.alerts = append(gs.alerts, alert)
 }
 
-func (gs *gameState) AddPlayer(player *User) {
+func (gs *gameState) AddPlayer(player *Player) {
 	gs.players[player] = true
-	gs.gameLogger.Log(fmt.Sprintf("User %s joined", player.Name))
+	gs.gameLogger.Log(fmt.Sprintf("Player %s joined", player.getName()))
 }
 
-func (gs *gameState) RemovePlayer(player *User) {
+func (gs *gameState) RemovePlayer(player *Player) {
 	if gs.players[player] {
 		delete(gs.players, player)
 	}
-	gs.gameLogger.Log(fmt.Sprintf("User %s left", player.Name))
+	gs.gameLogger.Log(fmt.Sprintf("Player %s left", player.getName()))
 }
 
 func (gs *gameState) updateGameStatus(status string) {

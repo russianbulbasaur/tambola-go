@@ -12,8 +12,8 @@ import (
 
 type gameServer struct {
 	id          int32
-	join        chan *User
-	leave       chan *User
+	join        chan *Player
+	leave       chan *Player
 	broadcast   chan []byte
 	servicePipe chan<- int32
 	state       GameState
@@ -25,21 +25,21 @@ type gameServer struct {
 
 type GameServer interface {
 	StartGameServer()
-	AddPlayer(*User)
-	RemovePlayer(*User)
+	AddPlayer(*Player)
+	RemovePlayer(*Player)
 	BroadcastMessage([]byte)
 	Log(string)
 }
 
-func NewGameServer(gameID int32, host *User, servicePipe chan<- int32) GameServer {
+func NewGameServer(gameID int32, host *Player, servicePipe chan<- int32) GameServer {
 	log.Println(fmt.Sprintf("Making new game server with game id %d", gameID))
 	ctx, cancel := context.WithCancel(context.Background())
 	childCtx := context.WithValue(ctx, "game_id", gameID)
 	logger := utils.NewTambolaLogger(childCtx)
 	return &gameServer{
 		id:          gameID,
-		join:        make(chan *User),
-		leave:       make(chan *User),
+		join:        make(chan *Player),
+		leave:       make(chan *Player),
 		broadcast:   make(chan []byte),
 		state:       NewGameState(host, logger),
 		servicePipe: servicePipe,
@@ -59,13 +59,13 @@ func (gs *gameServer) BroadcastMessage(message []byte) {
 	gs.Lock.Unlock()
 }
 
-func (gs *gameServer) AddPlayer(player *User) {
+func (gs *gameServer) AddPlayer(player *Player) {
 	go player.ReadPump(gs.gameCtx)
 	go player.WritePump(gs.gameCtx)
 	gs.join <- player
 }
 
-func (gs *gameServer) RemovePlayer(player *User) {
+func (gs *gameServer) RemovePlayer(player *Player) {
 	gs.leave <- player
 }
 
@@ -86,13 +86,15 @@ func (gs *gameServer) StartGameServer() {
 	}
 }
 
-func (gs *gameServer) registerPlayer(user *User) {
-	serverUser := &User{
-		Id:   -1,
-		Name: "Server",
+func (gs *gameServer) registerPlayer(user *Player) {
+	serverPlayer := &Player{
+		User: &User{
+			Id:   -1,
+			Name: "Server",
+		},
 	}
-	userJoinedPayload := NewUserJoinedPayload(user)
-	message := NewMessage(-1, UserJoinedEvent, serverUser, userJoinedPayload)
+	userJoinedPayload := NewPlayerJoinedPayload(user)
+	message := NewMessage(-1, PlayerJoinedEvent, serverPlayer, userJoinedPayload)
 
 	//server register
 	gs.state.AddPlayer(user)
@@ -101,23 +103,25 @@ func (gs *gameServer) registerPlayer(user *User) {
 	gs.sendGameStateToJoinee(user)
 }
 
-func (gs *gameServer) sendGameStateToJoinee(player *User) {
-	players := make([]*User, 0)
+func (gs *gameServer) sendGameStateToJoinee(player *Player) {
+	players := make([]*Player, 0)
 	for memberPlayer := range gs.state.GetPlayers() {
 		players = append(players, memberPlayer)
 	}
 	playersAlreadyInLobbyPayload := NewPlayersAlreadyInLobbyPayload(players, gs.id)
-	serverUser := &User{
-		Id:   -1,
-		Name: "Server",
+	serverPlayer := &Player{
+		User: &User{
+			Id:   -1,
+			Name: "Server",
+		},
 	}
 	message := NewMessage(rand.Int64(),
 		PlayersInLobbyEvent,
-		serverUser, playersAlreadyInLobbyPayload)
+		serverPlayer, playersAlreadyInLobbyPayload)
 	player.Send <- message.EncodeToJson()
 }
 
-func (gs *gameServer) unregisterPlayer(player *User) {
+func (gs *gameServer) unregisterPlayer(player *Player) {
 	if player.IsHost {
 		gs.killServer()
 		return
@@ -126,12 +130,14 @@ func (gs *gameServer) unregisterPlayer(player *User) {
 	//server register
 	gs.state.RemovePlayer(player)
 
-	serverUser := &User{
-		Id:   -1,
-		Name: "Server",
+	serverPlayer := &Player{
+		User: &User{
+			Id:   -1,
+			Name: "Server",
+		},
 	}
-	userLeftPayload := NewUserLeftPayload(player)
-	message := NewMessage(-1, UserLeftEvent, serverUser, userLeftPayload)
+	userLeftPayload := NewPlayerLeftPayload(player)
+	message := NewMessage(-1, PlayerLeftEvent, serverPlayer, userLeftPayload)
 	gs.broadcastMessage(message.EncodeToJson())
 }
 

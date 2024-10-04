@@ -2,10 +2,11 @@ package handlers
 
 import (
 	"cmd/tambola/internals/services"
+	"cmd/tambola/models"
+	"encoding/json"
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
-	"strconv"
 )
 
 var upgrader = websocket.Upgrader{
@@ -30,29 +31,31 @@ func NewGameHandler(gs services.GameService) GameHandler {
 }
 
 func (gh *gameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
-	params := r.URL.Query()
-	userId, err := strconv.ParseInt(params.Get("user_id"), 10, 64)
+	err := r.ParseForm()
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	name := params.Get("name")
+	user := models.ParseUserFromJson(r.Form.Get("user"))
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	gh.gameService.CreateGame(userId, name, conn)
+	gh.gameService.CreateGame(&user, conn)
 }
 
 func (gh *gameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
-	params := r.URL.Query()
-	userId, err := strconv.ParseInt(params.Get("user_id"), 10, 64)
+	err := r.ParseForm()
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	name := params.Get("name")
-	code, err := strconv.ParseInt(params.Get("code"), 10, 32)
+	user := models.ParseUserFromJson(r.Form.Get("user"))
+	type joinRequest struct {
+		Code string `json:"code"`
+	}
+	var req joinRequest
+	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		log.Println(err)
 		return
@@ -61,5 +64,5 @@ func (gh *gameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	gh.gameService.JoinGame(int32(code), userId, name, conn)
+	gh.gameService.JoinGame(req.Code, &user, conn)
 }

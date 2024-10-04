@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/gorilla/websocket"
 	"log"
@@ -39,6 +40,23 @@ type User struct {
 
 func (user *User) getName() string {
 	return user.Name
+}
+
+func (user *User) EncodeToJson() []byte {
+	encoded, err := json.Marshal(user)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	return encoded
+}
+
+func ParseUserFromJson(userString string) User {
+	var user User
+	err := json.Unmarshal([]byte(userString), &user)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	return user
 }
 
 type Player struct {

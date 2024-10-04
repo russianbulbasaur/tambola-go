@@ -6,24 +6,25 @@ import (
 	"log"
 	"math/rand/v2"
 	"runtime"
+	"strconv"
 	"sync"
 )
 
 type gameService struct {
-	games       map[int32]models.GameServer
+	games       map[string]models.GameServer
 	activeGames int64
 	mutex       sync.Mutex
-	servicePipe chan int32
+	servicePipe chan string
 }
 
 type GameService interface {
-	CreateGame(int64, string, *websocket.Conn)
-	JoinGame(int32, int64, string, *websocket.Conn)
+	CreateGame(*models.User, *websocket.Conn)
+	JoinGame(string, *models.User, *websocket.Conn)
 }
 
 func NewGameService() GameService {
-	gameMap := make(map[int32]models.GameServer)
-	servicePipe := make(chan int32)
+	gameMap := make(map[string]models.GameServer)
+	servicePipe := make(chan string)
 	service := &gameService{
 		games:       gameMap,
 		activeGames: 0,
@@ -50,13 +51,9 @@ func deleteGameService(gs *gameService) {
 	}
 }
 
-func (gs *gameService) CreateGame(userId int64, name string, conn *websocket.Conn) {
+func (gs *gameService) CreateGame(user *models.User, conn *websocket.Conn) {
 	host := &models.Player{
-		User: &models.User{
-			Name:   name,
-			Id:     userId,
-			IsHost: true,
-		},
+		User: user,
 		Send: make(chan []byte, 500),
 		Conn: conn,
 	}
@@ -71,22 +68,18 @@ func (gs *gameService) CreateGame(userId int64, name string, conn *websocket.Con
 	gs.games[gameId] = gameServer
 }
 
-func generateGameCode() int32 {
-	return rand.Int32()
+func generateGameCode() string {
+	return strconv.Itoa(rand.Int())
 }
 
-func (gs *gameService) JoinGame(code int32, userId int64, name string, conn *websocket.Conn) {
+func (gs *gameService) JoinGame(code string, user *models.User, conn *websocket.Conn) {
 	gameServer := gs.games[code]
 	if gameServer == nil {
 		conn.Close()
 		return
 	}
 	player := &models.Player{
-		User: &models.User{
-			Id:     userId,
-			Name:   name,
-			IsHost: false,
-		},
+		User:       user,
 		GameServer: gameServer,
 		Conn:       conn, Send: make(chan []byte, 500)}
 	gameServer.AddPlayer(player)

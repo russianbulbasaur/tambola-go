@@ -11,7 +11,6 @@ import (
 func Protect(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := r.Header.Get("token")
-		println(token)
 		if token == "" {
 			w.WriteHeader(http.StatusUnauthorized)
 			w.Write([]byte("no token"))
@@ -29,15 +28,13 @@ func Protect(next http.Handler) http.Handler {
 		}
 
 		if claims, ok := parsedToken.Claims.(jwt.MapClaims); ok {
-			userId := claims["user_id"]
-			phone := claims["phone"]
+			user := claims["sub"]
 			err := r.ParseForm()
 			if err != nil {
 				log.Fatalln("Form parsing error")
 				return
 			}
-			r.Form.Add("user", userId.(string))
-			r.Form.Add("phone", phone.(string))
+			r.Form.Add("user", user.(string))
 		} else {
 			log.Println("invalid token")
 			return

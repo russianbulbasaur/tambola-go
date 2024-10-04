@@ -39,14 +39,17 @@ func (ah *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
-	response := ""
+	response := []byte("")
 	if req.SignupToken == "" {
 		response, err = ah.authService.Login(req.Phone, req.Otp, req.FirebaseToken)
 	} else {
-		response, err = ah.authService.Signup(req.SignupToken)
+		response, err = ah.authService.Signup(req.Phone, req.SignupToken, req.Name)
 	}
 	if err != nil {
-		return
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
 	}
+	w.WriteHeader(http.StatusOK)
 	w.Write(response)
+	return
 }

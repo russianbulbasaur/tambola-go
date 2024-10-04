@@ -7,7 +7,7 @@ import (
 
 type playersAlreadyInLobbyPayload struct {
 	Players []*Player `json:"players"`
-	GameId  int32     `json:"game_id"`
+	GameId  string    `json:"game_id"`
 }
 
 type PlayersAlreadyInLobbyPayload interface {
@@ -15,7 +15,7 @@ type PlayersAlreadyInLobbyPayload interface {
 }
 
 func NewPlayersAlreadyInLobbyPayload(users []*Player,
-	gameId int32) PlayersAlreadyInLobbyPayload {
+	gameId string) PlayersAlreadyInLobbyPayload {
 	return &playersAlreadyInLobbyPayload{users, gameId}
 }
 

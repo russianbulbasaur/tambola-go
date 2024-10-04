@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"cmd/tambola/models"
 	"database/sql"
 	"log"
 )
@@ -10,8 +11,8 @@ type authRepository struct {
 }
 
 type AuthRepository interface {
-	Signup(string, string) (int64, error)
-	UserExists(string) (bool, error)
+	Signup(string, string) (*models.User, error)
+	FindUser(string) (*models.User, error)
 }
 
 func NewAuthRepository(db *sql.DB) AuthRepository {
@@ -20,37 +21,37 @@ func NewAuthRepository(db *sql.DB) AuthRepository {
 	}
 }
 
-func (ar *authRepository) UserExists(phone string) (bool, error) {
-	results, err := ar.db.Query(`select count(*) as count from users where phone=?`,
+func (ar *authRepository) FindUser(phone string) (*models.User, error) {
+	results, err := ar.db.Query(`select id,name,phone from users where phone=?`,
 		phone)
 	defer results.Close()
 	if err != nil {
-		return false, err
+		return nil, err
 	}
-	var count int32
+	var user models.User
 	for results.Next() {
-		err := results.Scan(&count)
+		err := results.Scan(&user.Id, &user.Name, &user.Phone)
 		if err != nil {
-			return false, err
+			return nil, err
 		}
 	}
-	return count != 0, nil
+	return &user, nil
 }
 
-func (ar *authRepository) Signup(name string, phone string) (int64, error) {
+func (ar *authRepository) Signup(name string, phone string) (*models.User, error) {
 	results, err := ar.db.Query(
-		`insert into users(name,phone) values(?,?) returning id`,
+		`insert into users(name,phone) values(?,?) returning id,name,phone`,
 		name, phone)
 	defer results.Close()
 	if err != nil {
 		log.Fatalln(err)
 	}
-	var userId int64
+	var user models.User
 	for results.Next() {
-		err := results.Scan(&userId)
+		err := results.Scan(&user.Id, &user.Name, &user.Phone)
 		if err != nil {
-			return -1, err
+			return nil, err
 		}
 	}
-	return userId, nil
+	return &user, nil
 }

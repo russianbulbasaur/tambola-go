@@ -11,11 +11,11 @@ import (
 )
 
 type gameServer struct {
-	id          int32
+	id          string
 	join        chan *Player
 	leave       chan *Player
 	broadcast   chan []byte
-	servicePipe chan<- int32
+	servicePipe chan<- string
 	state       GameState
 	Lock        sync.Mutex
 	gameLogger  *utils.TambolaLogger
@@ -31,7 +31,7 @@ type GameServer interface {
 	Log(string)
 }
 
-func NewGameServer(gameID int32, host *Player, servicePipe chan<- int32) GameServer {
+func NewGameServer(gameID string, host *Player, servicePipe chan<- string) GameServer {
 	log.Println(fmt.Sprintf("Making new game server with game id %d", gameID))
 	ctx, cancel := context.WithCancel(context.Background())
 	childCtx := context.WithValue(ctx, "game_id", gameID)

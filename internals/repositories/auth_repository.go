@@ -22,13 +22,14 @@ func NewAuthRepository(db *sql.DB) AuthRepository {
 }
 
 func (ar *authRepository) FindUser(phone string) (*models.User, error) {
-	results, err := ar.db.Query(`select id,name,phone from users where phone=?`,
+	results, err := ar.db.Query(
+		"select id,name,phone from users where phone=$1",
 		phone)
-	defer results.Close()
 	if err != nil {
-		return nil, err
+		panic(err.Error())
 	}
 	var user models.User
+	defer results.Close()
 	for results.Next() {
 		err := results.Scan(&user.Id, &user.Name, &user.Phone)
 		if err != nil {
@@ -40,7 +41,7 @@ func (ar *authRepository) FindUser(phone string) (*models.User, error) {
 
 func (ar *authRepository) Signup(name string, phone string) (*models.User, error) {
 	results, err := ar.db.Query(
-		`insert into users(name,phone) values(?,?) returning id,name,phone`,
+		`insert into users(name,phone) values($1,$2) returning id,name,phone`,
 		name, phone)
 	defer results.Close()
 	if err != nil {

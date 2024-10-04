@@ -24,9 +24,11 @@ func NewAuthHandler(authService services.AuthService) AuthHandler {
 func (ah *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 	type loginRequest struct {
 		//while first login
-		Phone         string `json:"phone"`
 		Otp           string `json:"otp"`
-		FirebaseToken string `json:"firebaseToken"`
+		FirebaseToken string `json:"firebase_token"`
+
+		//common
+		Phone string `json:"phone"`
 
 		//while signup
 		SignupToken string `json:"signup_token"`

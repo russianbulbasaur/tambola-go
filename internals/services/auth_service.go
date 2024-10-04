@@ -36,7 +36,7 @@ func (as *authService) Login(phone string, otp string, firebaseToken string) ([]
 		if err != nil {
 			return nil, err
 		}
-		if user == nil {
+		if user.Id == 0 {
 			//signup
 			signupToken := generateSignupToken(phone)
 			user = &models.User{
@@ -83,7 +83,7 @@ func generateSignupToken(phone string) string {
 func generateToken(data jwt.MapClaims) string {
 	key := os.Getenv("JWT_SECRET")
 	tokenWithClaims := jwt.NewWithClaims(jwt.SigningMethodHS256, data)
-	token, err := tokenWithClaims.SignedString(key)
+	token, err := tokenWithClaims.SignedString([]byte(key))
 	if err != nil {
 		log.Fatalln(err)
 	}

@@ -31,7 +31,7 @@ func main() {
 	gameService, userService, authService := initServices(userRepository, authRepository)
 	initHandlers(userService, gameService, authService)
 	appRouter := initRouter()
-	startServer(appRouter)
+	startServer(middlewares.EnableCors(appRouter))
 }
 
 func loadEnv() {
@@ -64,7 +64,7 @@ func initHandlers(userService services.UserService, gameService services.GameSer
 	authHandler = handlers.NewAuthHandler(authService)
 }
 
-func initRouter() *http.ServeMux {
+func initRouter() http.Handler {
 	appRouter := http.NewServeMux()
 	//non protected routes
 	appRouter.HandleFunc("POST /login", authHandler.Login)
@@ -87,7 +87,7 @@ func userRouter() http.Handler {
 	return middlewares.Protect(userRouter)
 }
 
-func startServer(appRouter *http.ServeMux) {
+func startServer(appRouter http.Handler) {
 	//port := os.Getenv("PORT")
 	port := "8000"
 	log.Printf("Starting server at %s", port)

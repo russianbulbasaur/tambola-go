@@ -10,15 +10,19 @@ import (
 
 func Protect(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		//token check in header for http and in url for ws connections
 		token := r.Header.Get("token")
 		if token == "" {
-			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte("no token"))
-			return
+			token = r.URL.Query().Get("token")
+			if token == "" {
+				w.WriteHeader(http.StatusUnauthorized)
+				w.Write([]byte("no token"))
+				return
+			}
 		}
 		parsedToken, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 			}
 
 			return []byte(os.Getenv("JWT_SECRET")), nil

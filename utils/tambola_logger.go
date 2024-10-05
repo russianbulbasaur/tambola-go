@@ -11,7 +11,7 @@ import (
 )
 
 type TambolaLogger struct {
-	gameId int32
+	gameId string
 	file   *os.File
 	writer *bufio.Writer
 }
@@ -29,7 +29,7 @@ func NewTambolaLogger(gameContext context.Context) *TambolaLogger {
 		log.Fatalln("Unable to create logs file", err)
 	}
 	writer := bufio.NewWriter(file)
-	return &TambolaLogger{gameId: gameId.(int32),
+	return &TambolaLogger{gameId: gameId.(string),
 		file:   file,
 		writer: writer}
 }

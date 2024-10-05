@@ -40,6 +40,7 @@ func (as *authService) Login(phone string, otp string, firebaseToken string) ([]
 			//signup
 			signupToken := generateSignupToken(phone)
 			user = &models.User{
+				Phone: phone,
 				Token: signupToken,
 			}
 		} else {
@@ -66,8 +67,7 @@ func (as *authService) Signup(phone string, signupToken string, name string) ([]
 
 func generateUserToken(user *models.User) string {
 	data := jwt.MapClaims{
-		"sub": user.EncodeToJson(),
-		"exp": time.Now().Add(time.Minute * 5).Unix(),
+		"sub": string(user.EncodeToJson()),
 	}
 	return generateToken(data)
 }

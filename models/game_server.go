@@ -32,7 +32,7 @@ type GameServer interface {
 }
 
 func NewGameServer(gameID string, host *Player, servicePipe chan<- string) GameServer {
-	log.Println(fmt.Sprintf("Making new game server with game id %d", gameID))
+	log.Println(fmt.Sprintf("Making new game server with game id %s", gameID))
 	ctx, cancel := context.WithCancel(context.Background())
 	childCtx := context.WithValue(ctx, "game_id", gameID)
 	logger := utils.NewTambolaLogger(childCtx)

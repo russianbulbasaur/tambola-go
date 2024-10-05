@@ -14,6 +14,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/joho/godotenv"
+	"github.com/rs/cors"
 	"log"
 	"net/http"
 )
@@ -31,7 +32,7 @@ func main() {
 	gameService, userService, authService := initServices(userRepository, authRepository)
 	initHandlers(userService, gameService, authService)
 	appRouter := initRouter()
-	startServer(middlewares.EnableCors(appRouter))
+	startServer(appRouter)
 }
 
 func loadEnv() {
@@ -64,7 +65,7 @@ func initHandlers(userService services.UserService, gameService services.GameSer
 	authHandler = handlers.NewAuthHandler(authService)
 }
 
-func initRouter() http.Handler {
+func initRouter() *http.ServeMux {
 	appRouter := http.NewServeMux()
 	//non protected routes
 	appRouter.HandleFunc("POST /login", authHandler.Login)
@@ -91,6 +92,7 @@ func startServer(appRouter http.Handler) {
 	//port := os.Getenv("PORT")
 	port := "8000"
 	log.Printf("Starting server at %s", port)
+	appRouter = cors.Default().Handler(appRouter)
 	err := http.ListenAndServe(fmt.Sprintf("0.0.0.0:%s", port), appRouter)
 	if err != nil {
 		log.Fatalln(err)

@@ -20,7 +20,7 @@ func NewTambolaLogger(gameContext context.Context) *TambolaLogger {
 	directory := "logs"
 	gameId := gameContext.Value("game_id")
 	err := os.Mkdir(directory, 0777)
-	fileName := fmt.Sprintf("%d.log", gameId)
+	fileName := fmt.Sprintf("%s.log", gameId)
 	filePath := filepath.Join(directory, fileName)
 	file, err := os.OpenFile(filePath,
 		os.O_APPEND|os.O_CREATE|os.O_RDWR,

@@ -1,8 +1,11 @@
-package models
+package game_server
 
 import (
+	"cmd/tambola/models"
 	"cmd/tambola/utils"
+	"encoding/json"
 	"fmt"
+	"log"
 )
 
 const Playing = "playing"
@@ -12,12 +15,12 @@ const Closed = "closed"
 type gameState struct {
 	players       map[*Player]bool
 	host          *Player
-	Status        string
-	alerts        []string
-	claimed       []string
-	numbersCalled []int32
+	Status        string   `json:"status"`
+	Alerts        []string `json:"alerts"`
+	Claimed       []string `json:"claimed"`
+	NumbersCalled []int32  `json:"numbers"`
 	playerCount   int32
-	gameLogger    *utils.TambolaLogger
+	logger        *utils.TambolaLogger
 }
 
 type GameState interface {
@@ -31,14 +34,15 @@ type GameState interface {
 	AddPlayer(player *Player)
 	RemovePlayer(player *Player)
 	UpdateGameState(data []byte) bool
+	GetStateJson() string
 }
 
 func NewGameState(host *Player, logger *utils.TambolaLogger) GameState {
 	return &gameState{
-		host:       host,
-		players:    make(map[*Player]bool),
-		Status:     "waiting",
-		gameLogger: logger,
+		host:    host,
+		players: make(map[*Player]bool),
+		Status:  "waiting",
+		logger:  logger,
 	}
 }
 
@@ -59,55 +63,63 @@ func (gs *gameState) GetPlayerCount() int32 {
 }
 
 func (gs *gameState) GetAlerts() []string {
-	return gs.alerts
+	return gs.Alerts
 }
 
 func (gs *gameState) GetClaimed() []string {
-	return gs.claimed
+	return gs.Claimed
 }
 
 func (gs *gameState) GetCalledNumbers() []int32 {
-	return gs.numbersCalled
+	return gs.NumbersCalled
 }
 
 func (gs *gameState) addNumber(number int32) {
-	gs.numbersCalled = append(gs.numbersCalled, number)
-	gs.gameLogger.Log(fmt.Sprintf("Called %d number", number))
+	gs.NumbersCalled = append(gs.NumbersCalled, number)
+	gs.logger.LogChannel <- fmt.Sprintf("Called %d number", number)
 }
 
 func (gs *gameState) addAlert(alert string) {
-	gs.alerts = append(gs.alerts, alert)
+	gs.Alerts = append(gs.Alerts, alert)
 }
 
 func (gs *gameState) AddPlayer(player *Player) {
 	gs.players[player] = true
-	gs.gameLogger.Log(fmt.Sprintf("Player %s joined", player.getName()))
+	gs.logger.LogChannel <- fmt.Sprintf("Player %s joined", player.GetName())
 }
 
 func (gs *gameState) RemovePlayer(player *Player) {
 	if gs.players[player] {
 		delete(gs.players, player)
 	}
-	gs.gameLogger.Log(fmt.Sprintf("Player %s left", player.getName()))
+	gs.logger.LogChannel <- fmt.Sprintf("Player %s left", player.GetName())
 }
 
 func (gs *gameState) updateGameStatus(status string) {
 	gs.Status = status
-	gs.gameLogger.Log(fmt.Sprintf("Updating game state to %s", status))
+	gs.logger.LogChannel <- fmt.Sprintf("Updating game state to %s", status)
 }
 
 func (gs *gameState) UpdateGameState(data []byte) bool {
-	message := Decode(data)
+	message := models.Decode(data)
 	switch message.GetEvent() {
-	case NumberCalledEvent:
-		numberCalledPayload := ParseNumberPayload(message.GetPayloadJson())
+	case models.NumberCalledEvent:
+		numberCalledPayload := models.ParseNumberPayload(message.GetPayloadJson())
 		gs.addNumber(numberCalledPayload.GetNumber())
-	case UpdateGameStatusEvent:
-		gameStatusPayload := NewGameStatusPayload(message.GetPayloadJson())
+	case models.UpdateGameStatusEvent:
+		gameStatusPayload := models.ParseGameStatusPayload(message.GetPayloadJson())
 		gs.updateGameStatus(gameStatusPayload.GetGameStatus())
-	case AlertEvent:
-		alertPayload := NewAlertPayload(message.GetPayloadJson())
+	case models.AlertEvent:
+		alertPayload := models.NewAlertPayload(message.GetPayloadJson())
 		gs.addAlert(alertPayload.GetAlert())
 	}
 	return false
+}
+
+func (gs *gameState) GetStateJson() string {
+	encoded, err := json.Marshal(gs)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	return string(encoded)
 }

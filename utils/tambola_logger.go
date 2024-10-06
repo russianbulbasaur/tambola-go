@@ -11,9 +11,10 @@ import (
 )
 
 type TambolaLogger struct {
-	gameId string
-	file   *os.File
-	writer *bufio.Writer
+	gameId     string
+	file       *os.File
+	writer     *bufio.Writer
+	LogChannel chan string
 }
 
 func NewTambolaLogger(gameContext context.Context) *TambolaLogger {
@@ -30,18 +31,28 @@ func NewTambolaLogger(gameContext context.Context) *TambolaLogger {
 	}
 	writer := bufio.NewWriter(file)
 	return &TambolaLogger{gameId: gameId.(string),
-		file:   file,
-		writer: writer}
+		file:       file,
+		writer:     writer,
+		LogChannel: make(chan string),
+	}
 }
 
-func (tl *TambolaLogger) Log(text string) {
+func (tl *TambolaLogger) StartLogging(gameContext context.Context) {
 	gameId := tl.gameId
-	_, err := tl.writer.Write([]byte(formatLogEntry(text, gameId)))
-	err = tl.writer.Flush()
-	if err != nil {
-		log.Fatalln(err)
+	for {
+		select {
+		case text := <-tl.LogChannel:
+			_, err := tl.writer.Write([]byte(formatLogEntry(text, gameId)))
+			err = tl.writer.Flush()
+			if err != nil {
+				log.Fatalln(err)
+			}
+			log.Println(gameId, ":", text)
+		case _ = <-gameContext.Done():
+			log.Println(gameId, ":", "Killing logger")
+			return
+		}
 	}
-	log.Println(gameId, ":", text)
 }
 
 func formatLogEntry(text string, gameId any) string {

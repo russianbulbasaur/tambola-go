@@ -13,9 +13,9 @@ const UpdateGameStatusEvent = "game_status"
 const PlayersInLobbyEvent = "players_already_in_lobby"
 
 type message struct {
-	Id          int64   `json:"id"`
-	Event       string  `json:"event"`
-	Sender      *Player `json:"sender"`
+	Id          int64  `json:"id"`
+	Event       string `json:"event"`
+	Sender      *User  `json:"sender"`
 	payload     Payload
 	PayloadJson interface{} `json:"payload"`
 }
@@ -27,7 +27,7 @@ type Message interface {
 	EncodeToJson() []byte
 }
 
-func NewMessage(id int64, event string, sender *Player, payload Payload) Message {
+func NewMessage(id int64, event string, sender *User, payload Payload) Message {
 	return &message{
 		Id:      id,
 		Event:   event,

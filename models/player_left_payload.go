@@ -6,15 +6,15 @@ import (
 )
 
 type playerLeftPayload struct {
-	Player *Player `json:"player"`
+	Player *User `json:"player"`
 }
 
 type PlayerLeftPayload interface {
 	GetJson() map[string]interface{}
-	GetPlayer() *Player
+	GetPlayer() *User
 }
 
-func NewPlayerLeftPayload(player *Player) PlayerLeftPayload {
+func NewPlayerLeftPayload(player *User) PlayerLeftPayload {
 	return &playerLeftPayload{player}
 }
 
@@ -28,7 +28,7 @@ func ParsePlayerLeftPayload(encoded string) PlayerLeftPayload {
 	return &payload
 }
 
-func (u *playerLeftPayload) GetPlayer() *Player {
+func (u *playerLeftPayload) GetPlayer() *User {
 	return u.Player
 }
 

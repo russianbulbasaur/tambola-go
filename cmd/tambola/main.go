@@ -28,8 +28,8 @@ var (
 func main() {
 	loadEnv()
 	db := db2.InitDB()
-	userRepository, authRepository := initRepositories(db)
-	gameService, userService, authService := initServices(userRepository, authRepository)
+	userRepository, authRepository, gameRepository := initRepositories(db)
+	gameService, userService, authService := initServices(userRepository, authRepository, gameRepository)
 	initHandlers(userService, gameService, authService)
 	appRouter := initRouter()
 	startServer(appRouter)
@@ -43,16 +43,18 @@ func loadEnv() {
 	}
 }
 
-func initRepositories(db *sql.DB) (repositories.UserRepository, repositories.AuthRepository) {
+func initRepositories(db *sql.DB) (repositories.UserRepository, repositories.AuthRepository,
+	repositories.GameRepository) {
 	userRepo := repositories.NewUserRepository(db)
 	authRepo := repositories.NewAuthRepository(db)
-	return userRepo, authRepo
+	gameRepo := repositories.NewGameRepository(db)
+	return userRepo, authRepo, gameRepo
 }
 
 func initServices(userRepo repositories.UserRepository,
-	authRepo repositories.AuthRepository) (services.GameService, services.UserService,
+	authRepo repositories.AuthRepository, gameRepo repositories.GameRepository) (services.GameService, services.UserService,
 	services.AuthService) {
-	gameService := services.NewGameService()
+	gameService := services.NewGameService(gameRepo)
 	userService := services.NewUserService(userRepo)
 	authService := services.NewAuthService(authRepo)
 	return gameService, userService, authService
@@ -69,6 +71,7 @@ func initRouter() *http.ServeMux {
 	appRouter := http.NewServeMux()
 	//non protected routes
 	appRouter.HandleFunc("POST /login", authHandler.Login)
+	//appRouter.Handle("/public/", http.FileServer(http.Dir("/public/")))
 
 	//protected routes
 	appRouter.Handle("/game/", http.StripPrefix("/game", gameRouter()))

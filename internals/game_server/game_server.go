@@ -1,10 +1,11 @@
-package models
+package game_server
 
 import (
+	"cmd/tambola/internals/repositories"
+	"cmd/tambola/models"
 	"cmd/tambola/utils"
 	"context"
 	"fmt"
-	"log"
 	"math/rand/v2"
 	"runtime"
 	"sync"
@@ -21,6 +22,7 @@ type gameServer struct {
 	gameLogger  *utils.TambolaLogger
 	gameCtx     context.Context
 	cancel      context.CancelFunc
+	syncer      GameSyncer
 }
 
 type GameServer interface {
@@ -29,28 +31,37 @@ type GameServer interface {
 	RemovePlayer(*Player)
 	BroadcastMessage([]byte)
 	Log(string)
+	GetGameId() string
 }
 
-func NewGameServer(gameID string, host *Player, servicePipe chan<- string) GameServer {
-	log.Println(fmt.Sprintf("Making new game server with game id %s", gameID))
+func NewGameServer(host *Player, servicePipe chan<- string, gameRepo repositories.GameRepository) GameServer {
+	gameID := fmt.Sprintf("TMB%d", gameRepo.CreateGame(host.User))
+	fmt.Printf("Making new game server with game id %s", gameID)
 	ctx, cancel := context.WithCancel(context.Background())
 	childCtx := context.WithValue(ctx, "game_id", gameID)
 	logger := utils.NewTambolaLogger(childCtx)
+	gameState := NewGameState(host, logger)
+	syncer := NewGameSyncer(gameID, gameRepo, gameState)
 	return &gameServer{
 		id:          gameID,
 		join:        make(chan *Player),
 		leave:       make(chan *Player),
 		broadcast:   make(chan []byte),
-		state:       NewGameState(host, logger),
+		state:       gameState,
 		servicePipe: servicePipe,
 		gameCtx:     childCtx,
 		cancel:      cancel,
 		gameLogger:  logger,
+		syncer:      syncer,
 	}
 }
 
+func (gs *gameServer) GetGameId() string {
+	return gs.id
+}
+
 func (gs *gameServer) Log(text string) {
-	gs.gameLogger.Log(text)
+	gs.gameLogger.LogChannel <- text
 }
 
 func (gs *gameServer) BroadcastMessage(message []byte) {
@@ -70,6 +81,8 @@ func (gs *gameServer) RemovePlayer(player *Player) {
 }
 
 func (gs *gameServer) StartGameServer() {
+	go gs.gameLogger.StartLogging(gs.gameCtx)
+	go gs.syncer.Sync(gs.gameCtx)
 	for {
 		select {
 		case user := <-gs.join:
@@ -79,44 +92,40 @@ func (gs *gameServer) StartGameServer() {
 		case message := <-gs.broadcast:
 			gs.broadcastMessage(message)
 		case <-gs.gameCtx.Done():
-			gs.gameLogger.Log(fmt.Sprintf("Stopping game server %d", gs.id))
+			gs.Log(fmt.Sprintf("Stopping game server %s", gs.id))
 			gs.servicePipe <- gs.id
 			return
 		}
 	}
 }
 
-func (gs *gameServer) registerPlayer(user *Player) {
-	serverPlayer := &Player{
-		User: &User{
-			Id:   -1,
-			Name: "Server",
-		},
+func (gs *gameServer) registerPlayer(player *Player) {
+	serverPlayer := &models.User{
+		Id:   -1,
+		Name: "Server",
 	}
-	userJoinedPayload := NewPlayerJoinedPayload(user)
-	message := NewMessage(-1, PlayerJoinedEvent, serverPlayer, userJoinedPayload)
+	userJoinedPayload := models.NewPlayerJoinedPayload(player.User)
+	message := models.NewMessage(-1, models.PlayerJoinedEvent, serverPlayer, userJoinedPayload)
 
 	//server register
-	gs.state.AddPlayer(user)
+	gs.state.AddPlayer(player)
 
 	gs.broadcastMessage(message.EncodeToJson())
-	gs.sendGameStateToJoinee(user)
+	gs.sendGameStateToJoinee(player)
 }
 
 func (gs *gameServer) sendGameStateToJoinee(player *Player) {
-	players := make([]*Player, 0)
+	players := make([]*models.User, 0)
 	for memberPlayer := range gs.state.GetPlayers() {
-		players = append(players, memberPlayer)
+		players = append(players, memberPlayer.User)
 	}
-	playersAlreadyInLobbyPayload := NewPlayersAlreadyInLobbyPayload(players, gs.id)
-	serverPlayer := &Player{
-		User: &User{
-			Id:   -1,
-			Name: "Server",
-		},
+	playersAlreadyInLobbyPayload := models.NewPlayersAlreadyInLobbyPayload(players, gs.id)
+	serverPlayer := &models.User{
+		Id:   -1,
+		Name: "Server",
 	}
-	message := NewMessage(rand.Int64(),
-		PlayersInLobbyEvent,
+	message := models.NewMessage(rand.Int64(),
+		models.PlayersInLobbyEvent,
 		serverPlayer, playersAlreadyInLobbyPayload)
 	player.Send <- message.EncodeToJson()
 }
@@ -130,14 +139,12 @@ func (gs *gameServer) unregisterPlayer(player *Player) {
 	//server register
 	gs.state.RemovePlayer(player)
 
-	serverPlayer := &Player{
-		User: &User{
-			Id:   -1,
-			Name: "Server",
-		},
+	serverPlayer := &models.User{
+		Id:   -1,
+		Name: "Server",
 	}
-	userLeftPayload := NewPlayerLeftPayload(player)
-	message := NewMessage(-1, PlayerLeftEvent, serverPlayer, userLeftPayload)
+	userLeftPayload := models.NewPlayerLeftPayload(player.User)
+	message := models.NewMessage(-1, models.PlayerLeftEvent, serverPlayer, userLeftPayload)
 	gs.broadcastMessage(message.EncodeToJson())
 }
 
@@ -152,7 +159,9 @@ func (gs *gameServer) broadcastMessage(data []byte) {
 }
 
 func (gs *gameServer) killServer() {
-	gs.gameLogger.Log("Initiating server kill")
-	gs.gameLogger.Log(fmt.Sprintf("Goroutines : %d", runtime.NumGoroutine()))
+	gs.Log("Initiating server kill")
+	gs.Log(fmt.Sprintf("Goroutines : %d", runtime.NumGoroutine()))
+
+	//Warning : kills all the goroutines for the game server (logger + syncer)
 	gs.cancel()
 }

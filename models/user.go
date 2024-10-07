@@ -10,7 +10,7 @@ type User struct {
 	Name   string `json:"name"`
 	Phone  string `json:"phone"`
 	Token  string `json:"token"`
-	IsHost bool   `json:"is_host"`
+	IsHost bool
 }
 
 func (user *User) GetName() string {

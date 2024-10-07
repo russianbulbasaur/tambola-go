@@ -25,7 +25,7 @@ type GameService interface {
 
 func NewGameService(gameRepo repositories.GameRepository) GameService {
 	gameMap := make(map[string]game_server.GameServer)
-	servicePipe := make(chan string)
+	servicePipe := make(chan string, 100)
 	service := &gameService{
 		games:       gameMap,
 		activeGames: 0,
@@ -54,6 +54,8 @@ func deleteGameService(gs *gameService) {
 }
 
 func (gs *gameService) CreateGame(user *models.User, conn *websocket.Conn) {
+	log.Printf("Create request recieved. GoRoutines : %d", runtime.NumGoroutine())
+	user.IsHost = true
 	host := &game_server.Player{
 		User: user,
 		Send: make(chan []byte, 500),

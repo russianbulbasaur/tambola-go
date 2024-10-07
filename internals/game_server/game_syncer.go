@@ -6,6 +6,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -13,6 +14,7 @@ type gameSyncer struct {
 	gameRepo      repositories.GameRepository
 	stripedGameId int64
 	gameState     GameState
+	wg            *sync.WaitGroup
 }
 
 type GameSyncer interface {
@@ -20,7 +22,7 @@ type GameSyncer interface {
 }
 
 func NewGameSyncer(gameId string, gameRepo repositories.GameRepository,
-	gameState GameState) GameSyncer {
+	gameState GameState, wg *sync.WaitGroup) GameSyncer {
 	stripedGameId, err := strconv.ParseInt(strings.Trim(gameId, "TMB"), 10, 64)
 	if err != nil {
 		log.Fatalln(err)
@@ -29,15 +31,21 @@ func NewGameSyncer(gameId string, gameRepo repositories.GameRepository,
 		stripedGameId: stripedGameId,
 		gameRepo:      gameRepo,
 		gameState:     gameState,
+		wg:            wg,
 	}
 }
 
+func (gs *gameSyncer) close() {
+	log.Printf("TMB%[1]d : Killing syncer %[1]d", gs.stripedGameId)
+	gs.wg.Done()
+}
+
 func (gs *gameSyncer) Sync(gameCtx context.Context) {
-	log.Printf("Launching syncer %d\n", gs.stripedGameId)
+	defer gs.close()
+	log.Printf("TMB%d : Launching syncer %d\n", gs.stripedGameId, gs.stripedGameId)
 	for {
 		select {
-		case _ = <-gameCtx.Done():
-			log.Printf("Killing syncer %d", gs.stripedGameId)
+		case <-gameCtx.Done():
 			return
 		default:
 			gameActivity := gs.gameState.GetStateJson()

@@ -6,8 +6,8 @@ import (
 	"cmd/tambola/utils"
 	"context"
 	"fmt"
+	"log"
 	"math/rand/v2"
-	"runtime"
 	"sync"
 )
 
@@ -23,6 +23,7 @@ type gameServer struct {
 	gameCtx     context.Context
 	cancel      context.CancelFunc
 	syncer      GameSyncer
+	waiter      *sync.WaitGroup
 }
 
 type GameServer interface {
@@ -36,12 +37,14 @@ type GameServer interface {
 
 func NewGameServer(host *Player, servicePipe chan<- string, gameRepo repositories.GameRepository) GameServer {
 	gameID := fmt.Sprintf("TMB%d", gameRepo.CreateGame(host.User))
-	fmt.Printf("Making new game server with game id %s", gameID)
+	log.Printf("Making new game server with game id %s", gameID)
 	ctx, cancel := context.WithCancel(context.Background())
 	childCtx := context.WithValue(ctx, "game_id", gameID)
-	logger := utils.NewTambolaLogger(childCtx)
+	var wg sync.WaitGroup
+	wg.Add(2)
+	logger := utils.NewTambolaLogger(childCtx, &wg)
 	gameState := NewGameState(host, logger)
-	syncer := NewGameSyncer(gameID, gameRepo, gameState)
+	syncer := NewGameSyncer(gameID, gameRepo, gameState, &wg)
 	return &gameServer{
 		id:          gameID,
 		join:        make(chan *Player),
@@ -53,6 +56,7 @@ func NewGameServer(host *Player, servicePipe chan<- string, gameRepo repositorie
 		cancel:      cancel,
 		gameLogger:  logger,
 		syncer:      syncer,
+		waiter:      &wg,
 	}
 }
 
@@ -92,7 +96,8 @@ func (gs *gameServer) StartGameServer() {
 		case message := <-gs.broadcast:
 			gs.broadcastMessage(message)
 		case <-gs.gameCtx.Done():
-			gs.Log(fmt.Sprintf("Stopping game server %s", gs.id))
+			gs.waiter.Wait()
+			log.Printf("Stopping game server %s", gs.id)
 			gs.servicePipe <- gs.id
 			return
 		}
@@ -131,7 +136,7 @@ func (gs *gameServer) sendGameStateToJoinee(player *Player) {
 }
 
 func (gs *gameServer) unregisterPlayer(player *Player) {
-	if player.IsHost {
+	if player.IsHost || len(gs.state.GetPlayers()) == 0 {
 		gs.killServer()
 		return
 	}
@@ -160,8 +165,6 @@ func (gs *gameServer) broadcastMessage(data []byte) {
 
 func (gs *gameServer) killServer() {
 	gs.Log("Initiating server kill")
-	gs.Log(fmt.Sprintf("Goroutines : %d", runtime.NumGoroutine()))
-
 	//Warning : kills all the goroutines for the game server (logger + syncer)
 	gs.cancel()
 }

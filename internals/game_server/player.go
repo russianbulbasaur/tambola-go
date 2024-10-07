@@ -6,28 +6,18 @@ import (
 	"fmt"
 	"github.com/gorilla/websocket"
 	"log"
-	"runtime"
 	"sync"
 	"time"
 )
 
 const (
-	// Max wait time when writing message to peer
 	writeWait = 10 * time.Second
 
-	// Max time till next pong from peer
-	pongWait = 60 * time.Second
+	pongWait = 20 * time.Second
 
-	// Send ping interval, must be less then pong wait time
-	pingPeriod = (pongWait * 9) / 10
+	pingPeriod = 10 * time.Second
 
-	// Maximum message size allowed from peer.
 	maxMessageSize = 10000
-)
-
-var (
-	newline = []byte{'\n'}
-	space   = []byte{' '}
 )
 
 type Player struct {
@@ -38,15 +28,15 @@ type Player struct {
 	Lock       sync.Mutex      `json:"-"`
 }
 
-func (player *Player) disconnect() {
-	player.GameServer.Log(fmt.Sprintf("Killing %s's read thread", player.GetName()))
-	log.Println("Goroutines : ", runtime.NumGoroutine())
+func (player *Player) disconnect(thread string) {
+	log.Printf(fmt.Sprintf("%s : Killing %s's %s thread", player.GameServer.GetGameId(),
+		player.GetName(), thread))
 	player.GameServer.RemovePlayer(player)
 	player.Conn.Close()
 }
 
 func (player *Player) ReadPump(gameCtx context.Context) {
-	defer player.disconnect()
+	defer player.disconnect("read")
 
 	player.Conn.SetReadLimit(maxMessageSize)
 	player.Conn.SetReadDeadline(time.Now().Add(pongWait))
@@ -74,17 +64,15 @@ func (player *Player) ReadPump(gameCtx context.Context) {
 func (player *Player) WritePump(gameCtx context.Context) {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
-		player.GameServer.Log(fmt.Sprintf("Killing %s's write thread", player.GetName()))
-		log.Println("Goroutines : ", runtime.NumGoroutine())
 		ticker.Stop()
-		player.disconnect()
+		player.disconnect("write")
 	}()
 	for {
 		select {
 		case message, ok := <-player.Send:
 			player.Conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
-				// The WsServer closed the channel.
+				// The WsServer closed the channel
 				player.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}

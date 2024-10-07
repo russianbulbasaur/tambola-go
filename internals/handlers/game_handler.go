@@ -3,7 +3,6 @@ package handlers
 import (
 	"cmd/tambola/internals/services"
 	"cmd/tambola/models"
-	"encoding/json"
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
@@ -51,18 +50,10 @@ func (gh *gameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	user := models.ParseUserFromJson(r.Form.Get("user"))
-	type joinRequest struct {
-		Code string `json:"code"`
-	}
-	var req joinRequest
-	err = json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		log.Println(err)
-		return
-	}
+	code := r.URL.Query().Get("code")
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	gh.gameService.JoinGame(req.Code, &user, conn)
+	gh.gameService.JoinGame(code, &user, conn)
 }

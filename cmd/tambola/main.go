@@ -17,6 +17,9 @@ import (
 	"github.com/rs/cors"
 	"log"
 	"net/http"
+	_ "net/http/pprof"
+	"runtime"
+	"time"
 )
 
 var (
@@ -96,6 +99,12 @@ func startServer(appRouter http.Handler) {
 	port := "8000"
 	log.Printf("Starting server at %s", port)
 	appRouter = cors.Default().Handler(appRouter)
+	go func() {
+		for {
+			log.Printf("Goroutine count : %d", runtime.NumGoroutine())
+			time.Sleep(time.Second * 5)
+		}
+	}()
 	err := http.ListenAndServe(fmt.Sprintf("0.0.0.0:%s", port), appRouter)
 	if err != nil {
 		log.Fatalln(err)

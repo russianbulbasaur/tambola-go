@@ -81,7 +81,9 @@ func (gs *gameServer) AddPlayer(player *Player) {
 }
 
 func (gs *gameServer) RemovePlayer(player *Player) {
+	println("heere")
 	gs.leave <- player
+	println("ankit")
 }
 
 func (gs *gameServer) StartGameServer() {
@@ -136,14 +138,14 @@ func (gs *gameServer) sendGameStateToJoinee(player *Player) {
 }
 
 func (gs *gameServer) unregisterPlayer(player *Player) {
-	if player.IsHost || len(gs.state.GetPlayers()) == 0 {
-		gs.killServer()
-		return
-	}
 
 	//server register
 	gs.state.RemovePlayer(player)
 
+	if len(gs.state.GetPlayers()) == 0 {
+		gs.killServer()
+		return
+	}
 	serverPlayer := &models.User{
 		Id:   -1,
 		Name: "Server",

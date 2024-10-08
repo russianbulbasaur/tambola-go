@@ -32,7 +32,8 @@ func NewTambolaLogger(gameContext context.Context, wg *sync.WaitGroup) *TambolaL
 		log.Fatalln("Unable to create logs file", err)
 	}
 	writer := bufio.NewWriter(file)
-	return &TambolaLogger{gameId: gameId.(string),
+	return &TambolaLogger{
+		gameId:     gameId.(string),
 		file:       file,
 		writer:     writer,
 		LogChannel: make(chan string),

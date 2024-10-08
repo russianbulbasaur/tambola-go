@@ -28,15 +28,21 @@ type Player struct {
 	Lock       sync.Mutex      `json:"-"`
 }
 
-func (player *Player) disconnect(thread string) {
-	log.Printf(fmt.Sprintf("%s : Killing %s's %s thread", player.GameServer.GetGameId(),
-		player.GetName(), thread))
+func (player *Player) disconnect() {
+	log.Printf(fmt.Sprintf("%s : Killing %s's write thread", player.GameServer.GetGameId(),
+		player.GetName()))
 	player.GameServer.RemovePlayer(player)
-	player.Conn.Close()
+	err := player.Conn.Close()
+	if err != nil {
+		log.Println(err)
+	}
 }
 
 func (player *Player) ReadPump(gameCtx context.Context) {
-	defer player.disconnect("read")
+	defer func() {
+		log.Printf(fmt.Sprintf("%s : Killing %s's read thread", player.GameServer.GetGameId(),
+			player.GetName()))
+	}()
 
 	player.Conn.SetReadLimit(maxMessageSize)
 	player.Conn.SetReadDeadline(time.Now().Add(pongWait))
@@ -65,7 +71,7 @@ func (player *Player) WritePump(gameCtx context.Context) {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
-		player.disconnect("write")
+		player.disconnect()
 	}()
 	for {
 		select {

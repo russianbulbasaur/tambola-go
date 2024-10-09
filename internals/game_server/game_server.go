@@ -81,9 +81,7 @@ func (gs *gameServer) AddPlayer(player *Player) {
 }
 
 func (gs *gameServer) RemovePlayer(player *Player) {
-	println("heere")
 	gs.leave <- player
-	println("ankit")
 }
 
 func (gs *gameServer) StartGameServer() {
